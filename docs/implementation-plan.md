@@ -14,7 +14,8 @@ This plan records what the repository implements, what can be verified locally, 
 | Observability | Request correlation ID, Micrometer metrics, Rabbit observation, OpenTelemetry exporter settings, Datadog quality gate | Verify end-to-end trace continuity in a live broker/APM environment; provision monitors and confirm ingestion |
 | Operations | Health probes, configurable canary/gate/promotion/rollback commands, expand/contract migration guidance, graceful application and worker shutdown timeouts | Verify draining under live SIGTERM; measurable RPO/RTO and regional failover need environment evidence |
 | API/resource controls | DGS field authorization, mapped batch loaders, input validation | Explicit GraphQL depth/complexity limits and externally governed REST/GraphQL contract tests are absent |
-| Testing/CI | JUnit unit/workflow tests, migration compatibility test, Docker-backed infrastructure test task, React tests, Datadog gate tests | GitLab jobs reference retired module names; containerized tests require a Docker-capable runner; no chaos suite or external contract provider verification |
+| Testing/CI | JUnit unit/workflow tests, migration compatibility test, Docker-backed infrastructure test task, React tests, Datadog gate tests | Containerized tests require a Docker-capable runner; no chaos suite or external contract provider verification |
+| Optional AWS projection | Worker can write version-guarded account snapshots with AWS SDK for Java v2; CloudFormation provisions a pay-per-request, encrypted, point-in-time-recoverable table and a write-only policy | AWS credentials, deployed table, IAM attachment, DynamoDB Local/LocalStack integration run, and live AWS behavior require an AWS environment |
 
 ## Implementation plan
 
@@ -39,7 +40,7 @@ This plan records what the repository implements, what can be verified locally, 
 
 ## External validation boundaries
 
-Protected branch approvals, production IAM/KMS grants, live secrets rotation, a deployed OIDC issuer, external vendor contracts, Datadog ingestion, registry publishing, Docker-capable CI runners, and the deployment platform require the owning environment. This repository can provide configuration, tests, and operator procedures, but local verification cannot prove those controls are active. The billing platform remains a contract simulator without a vendor API account and specification.
+Protected branch approvals, production IAM/KMS grants, live secrets rotation, a deployed OIDC issuer, external vendor contracts, Datadog ingestion, registry publishing, Docker-capable CI runners, and the deployment platform require the owning environment. This repository can provide configuration, tests, and operator procedures, but local verification cannot prove those controls are active. The billing platform remains a contract simulator without a vendor API account and specification. The optional DynamoDB code and CloudFormation template do not prove hands-on production AWS experience.
 
 ## Verification log
 

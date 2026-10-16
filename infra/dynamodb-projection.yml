@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Versioned billing account projection used by the optional event-worker DynamoDB destination.
+Parameters:
+  TableName:
+    Type: String
+    Default: billing-account-projection
+Resources:
+  AccountProjectionTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: accountId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: accountId
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: service
+          Value: billing-control-center
+        - Key: data-classification
+          Value: billing-account-projection
+  WorkerProjectionWritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Allows the event worker to update its account projection only.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:PutItem
+            Resource: !GetAtt AccountProjectionTable.Arn
+Outputs:
+  TableName:
+    Value: !Ref AccountProjectionTable
+  TableArn:
+    Value: !GetAtt AccountProjectionTable.Arn
+  WorkerProjectionWritePolicyArn:
+    Value: !Ref WorkerProjectionWritePolicy
