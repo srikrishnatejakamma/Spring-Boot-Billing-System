@@ -12,7 +12,7 @@ This plan records what the repository implements, what can be verified locally, 
 | Resilience | Resilience4j circuit breaker and rate limiter; versioned destination cursors; migration compatibility test | No periodic external source-of-truth reconciliation job or alerting implementation |
 | Security and privacy | JWT issuer/audience/signature/expiry validation, scopes, demo-only anonymous mode, config-tree secret support | Field-level encryption, managed KMS/Secrets Manager rotation, data retention/deletion policy and database grants need deployment-specific implementation |
 | Observability | Request correlation ID, Micrometer metrics, Rabbit observation, OpenTelemetry exporter settings, Datadog quality gate | Verify end-to-end trace continuity in a live broker/APM environment; provision monitors and confirm ingestion |
-| Operations | Health probes, configurable canary/gate/promotion commands, expand/contract migration guidance | CI gate failure currently does not invoke rollback; graceful shutdown/draining and measurable RPO/RTO/regional failover need implementation or environment evidence |
+| Operations | Health probes, configurable canary/gate/promotion/rollback commands, expand/contract migration guidance, graceful application and worker shutdown timeouts | Verify draining under live SIGTERM; measurable RPO/RTO and regional failover need environment evidence |
 | API/resource controls | DGS field authorization, mapped batch loaders, input validation | Explicit GraphQL depth/complexity limits and externally governed REST/GraphQL contract tests are absent |
 | Testing/CI | JUnit unit/workflow tests, migration compatibility test, Docker-backed infrastructure test task, React tests, Datadog gate tests | GitLab jobs reference retired module names; containerized tests require a Docker-capable runner; no chaos suite or external contract provider verification |
 
@@ -20,7 +20,7 @@ This plan records what the repository implements, what can be verified locally, 
 
 1. **Add mutation auditability.** Persist append-only audit rows in the same transaction as account and ledger mutations. Each row records trace ID, authenticated actor (or explicit system/demo actor), UTC timestamp, action, target, and a bounded justification. Add an authorized read path and tests for audit data and rollback behavior.
 2. **Repair verification wiring.** Update GitLab jobs to use current Gradle modules/tasks. Ensure backend tests, coverage, frontend tests/build, gate tests, infrastructure tests, and packaging refer to the modules that exist today.
-3. **Close operational behavior gaps.** Add graceful application shutdown and worker message draining; add a fail-closed canary rollback hook and tests for monitor failure/no-data/API errors/rollback failure. Keep rollout commands environment supplied.
+3. **Close operational behavior gaps.** Verify graceful shutdown and worker message draining under deployment signals; add tests for the canary rollback hook and rollback failure. Keep rollout commands environment supplied.
 4. **Harden event operations.** Define authorized DLQ inspection/redrive with replay-safe generation/idempotency; add scheduled reconciliation with drift metrics/alerts and bounded, restartable batches.
 5. **Add resource and compatibility guardrails.** Configure DGS depth/complexity limits and provider/consumer contract tests for the APIs that have concrete consumers.
 6. **Document deployment controls and evidence.** Specify retention/deletion and encryption/rotation responsibilities, queue/database backup and restore checks, and RPO/RTO assumptions. Only claim KMS, live rotation, regional failover, Datadog ingestion, or canary traffic shifting when the target environment demonstrates them.
@@ -43,6 +43,8 @@ Protected branch approvals, production IAM/KMS grants, live secrets rotation, a 
 
 ## Verification log
 
-- Baseline source review: current module layout and tests include billing service, event worker, ledger, migration compatibility, resilience, and Datadog gate coverage.
-- Baseline CI review: `.gitlab-ci.yml` references removed `billing-core`, `billing-api`, and `billing-integrations` task paths; correction planned.
-- Expanded implementation verification: pending.
+- `gradlew.bat verify :billing-service:bootJar :event-worker:bootJar :config-server:bootJar --no-daemon --console=plain`: passed. This runs module unit/workflow tests, frontend tests/build, both coverage gates, and assembles all three executable jars.
+- `gradlew.bat :system-tests:infrastructureTest --no-daemon --console=plain`: passed against MySQL 8.4, RabbitMQ, and MongoDB Testcontainers with independent billing and worker application contexts.
+- `python -m unittest discover -s ci -p 'test_*.py'`: 2 tests passed.
+- Baseline CI review found retired module references and a canary gate without rollback invocation; `.gitlab-ci.yml` now uses current modules and invokes the supplied rollback command on gate failure.
+- APM provider ingestion, production secrets/KMS, retention enforcement, cross-region recovery, real vendor contracts, and live traffic shifting remain environment-owned validation items.
