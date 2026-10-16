@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: event-worker
+  config:
+    import: optional:classpath:platform-defaults.yml
+  profiles:
+    default: distributed
+  cloud:
+    config:
+      enabled: false
+  datasource:
+    url: ${WORKER_DB_URL:jdbc:mysql://localhost:3306/worker?serverTimezone=UTC&connectTimeout=3000&socketTimeout=5000}
+    username: ${WORKER_DB_USER:worker}
+    password: ${WORKER_DB_PASSWORD:worker-local}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+      hibernate.type.preferred_instant_jdbc_type: TIMESTAMP
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    username: ${RABBIT_USER:billing}
+    password: ${RABBIT_PASSWORD:billing-local}
+    connection-timeout: 3s
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        default-requeue-rejected: false
+        concurrency: 2
+        prefetch: 10
+        retry:
+          enabled: true
+          max-attempts: 5
+          initial-interval: 1s
+          max-interval: 5s
+          multiplier: 2
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/billing}
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: 8082
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+billing:
+  security:
+    enabled: true
+worker:
+  platform-url: ${BILLING_PLATFORM_URL:http://localhost:8090}
+  cohort: ${WORKER_COHORT:main}
+  queue: ${WORKER_QUEUE:billing.account-sync}
+  routing-key: ${WORKER_ROUTING_KEY:account.changed}
+security:
+  jwt:
+    issuer: ${OIDC_ISSUER_URI:http://localhost:8180/realms/billing}
+    jwk-set-uri: ${OIDC_JWKS_URI:http://localhost:8180/realms/billing/protocol/openid-connect/certs}
+    audience: ${OIDC_AUDIENCE:billing-worker}

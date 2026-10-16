@@ -1,0 +1,10 @@
+spring:
+  config:
+    import:
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:configtree:/run/secrets/
+  cloud:
+    config:
+      enabled: true
+      username: ${CONFIG_USER:config-local}
+      password: ${CONFIG_PASSWORD:config-local-password}
