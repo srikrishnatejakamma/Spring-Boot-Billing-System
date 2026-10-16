@@ -4,6 +4,6 @@ dependencies {
     implementation 'org.springframework.data:spring-data-mongodb'
     implementation 'org.mongodb:mongodb-driver-sync'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation "io.github.resilience4j:resilience4j-circuitbreaker:${libs.versions.resilience4j.get()}"
-    implementation "io.github.resilience4j:resilience4j-ratelimiter:${libs.versions.resilience4j.get()}"
+    api "io.github.resilience4j:resilience4j-circuitbreaker:${libs.versions.resilience4j.get()}"
+    api "io.github.resilience4j:resilience4j-ratelimiter:${libs.versions.resilience4j.get()}"
 }

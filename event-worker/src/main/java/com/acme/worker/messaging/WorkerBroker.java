@@ -59,7 +59,8 @@ public class WorkerBroker {
             try { inbox.accept(event, cohort); }
             catch (DataIntegrityViolationException exception) {
                 var receipt = receipts.findById(event.change().eventId().toString());
-                if (receipt.isEmpty() || !receipt.get().payload.equals(json.writeValueAsString(event.change()))) throw exception;
+                if (receipt.isEmpty() || receipt.get().generation < event.generation()
+                        || !receipt.get().payload.equals(json.writeValueAsString(event.change()))) throw exception;
             }
         }
     }
