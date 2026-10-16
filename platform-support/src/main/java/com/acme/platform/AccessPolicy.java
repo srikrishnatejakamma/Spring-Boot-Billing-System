@@ -3,6 +3,7 @@ package com.acme.platform;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 
 public final class AccessPolicy {
     private final boolean secured;
@@ -20,7 +21,8 @@ public final class AccessPolicy {
     }
     public String actor() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication == null ? (secured ? "system" : "demo-operator") : authentication.getName();
+        return authentication == null || authentication instanceof AnonymousAuthenticationToken
+                ? (secured ? "system" : "demo-operator") : authentication.getName();
     }
     public boolean secured() { return secured; }
 }

@@ -1,7 +1,7 @@
 spring:
   config:
     import:
-      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - ${BILLING_CONFIG_IMPORT:configserver:${CONFIG_SERVER_URL:http://localhost:8888}}
       - optional:configtree:/run/secrets/
   cloud:
     config:

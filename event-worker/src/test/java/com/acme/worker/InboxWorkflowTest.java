@@ -73,7 +73,7 @@ class InboxWorkflowTest {
     }
     @Test void reusedEventIdWithDifferentContentIsRejected() throws Exception {
         var event = envelope(UUID.randomUUID(), 0); service.accept(event, "main");
-        var other = new AccountChanged(event.change().eventId(), "ACCOUNT_UPDATED", event.change().occurredAt(), event.change().account());
+        var other = new AccountChanged(event.change().eventId(), "ACCOUNT_CREATED", event.change().occurredAt(), event.change().account());
         assertThatThrownBy(() -> service.accept(new EventEnvelope(1, other, 0), "main")).isInstanceOf(IllegalArgumentException.class);
     }
     @Test void reportAcknowledgementAndReplayKeepRevisionsMonotonic() throws Exception {

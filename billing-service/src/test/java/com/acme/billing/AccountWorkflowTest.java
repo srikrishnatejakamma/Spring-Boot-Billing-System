@@ -78,7 +78,7 @@ class AccountWorkflowTest {
         mvc.perform(put("/api/accounts/" + account.id).contentType("application/json").content(body)).andExpect(status().isConflict());
         assertThat(events.count()).isEqualTo(2);
         assertThat(audit.findAllByOrderByOccurredAtDesc(org.springframework.data.domain.PageRequest.of(0, 10)))
-                .extracting(row -> row.justification).contains("Customer onboarding request", "Approved plan change");
+                .extracting(row -> row.justification).contains("ACCOUNT_CREATED", "Approved plan change");
         assertThat(audit.count()).isEqualTo(2);
     }
 

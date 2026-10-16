@@ -28,8 +28,10 @@ import static org.awaitility.Awaitility.await;
 
 @Tag("infrastructure")
 @Testcontainers
-@ActiveProfiles("distributed")
-@SpringBootTest(properties = {"billing.scheduler.enabled=false", "billing.seed=false"})
+@ActiveProfiles({"distributed", "security-test"})
+@SpringBootTest(properties = {
+        "billing.scheduler.enabled=false", "billing.seed=false", "spring.cloud.config.enabled=false",
+        "BILLING_CONFIG_IMPORT=optional:classpath:platform-defaults.yml"})
 class DistributedWorkflowTest {
     @Container static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4");
     @Container static RabbitMQContainer rabbit = new RabbitMQContainer("rabbitmq:3.13-management-alpine");
