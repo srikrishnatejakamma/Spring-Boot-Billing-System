@@ -1,6 +1,14 @@
 dependencies {
     testImplementation project(':billing-service')
     testImplementation project(':event-worker')
+    testImplementation project(':common-dto')
+    testImplementation project(':platform-support')
+    testImplementation testFixtures(project(':platform-support'))
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    testImplementation 'org.springframework.boot:spring-boot-starter-amqp'
+    testImplementation 'org.flywaydb:flyway-core'
+    testImplementation 'org.flywaydb:flyway-mysql'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:mysql'
