@@ -8,7 +8,7 @@ A runnable billing-account and ledger system that demonstrates correctness-focus
 - **Idempotent, concurrency-safe commands:** Account creation and ledger posting accept idempotency keys. Optimistic versions reject stale account updates with HTTP 409.
 - **Double-entry ledger:** Post balanced debit/credit transactions, retain immutable transactions and entries, and review account history. Ledger support is enabled in the demo profile; it can be controlled by configuration in other profiles.
 - **Transactional event delivery:** Account state, sync cursor, and immutable outbox event commit together. RabbitMQ publication uses durable messages, publisher confirms, and mandatory routing.
-- **Independent synchronization worker:** The worker owns its inbox, leases, and delivery reports. It consumes event IDs, deduplicates replays, preserves per-account version order, and updates an external billing-platform endpoint and a MongoDB projection.
+- **Independent synchronization worker:** The worker owns its inbox, leases, and delivery reports. It consumes event IDs, deduplicates replays, preserves per-account version order, and updates an external billing-platform endpoint and MongoDB projection, with optional version-guarded DynamoDB projection.
 - **Failure recovery and resilience:** Bounded retries with backoff, dead-letter handling, operator retry, destination circuit breaking, rate limiting, and outage simulation.
 - **Operator views and APIs:** React dashboard, account forms, event stream, audit history, recovery controls, GraphQL queries, and GraphiQL explorer.
 - **Security and audit:** Distributed services validate JWT issuer, audience, signature, and expiry, then enforce scopes for protected operations. Mutations write append-only audit records with actor and request correlation details. The local demo profile intentionally disables authentication.
@@ -116,7 +116,7 @@ python -m unittest discover -s ci -p 'test_*.py'
 | `billing-integrations` | Billing-platform HTTP adapter, MongoDB and optional DynamoDB projections, and resilience decorators |
 | `platform-support` | Shared JWT security, authorization, audit context, and observability configuration |
 | `billing-service` | Account and ledger REST APIs, DGS GraphQL API, JPA persistence, Flyway migrations, transactional outbox, and demo delivery |
-| `event-worker` | Independent RabbitMQ consumer, SQL inbox/leases, MongoDB projection, external destination delivery, and reports |
+| `event-worker` | Independent RabbitMQ consumer, SQL inbox/leases, MongoDB and optional DynamoDB projections, external destination delivery, and reports |
 | `config-server` | Spring Cloud Config Server with a native local configuration repository |
 | `system-tests` | Cross-service infrastructure tests using Testcontainers |
 | `frontend` | React/Vite operator dashboard and recovery console |

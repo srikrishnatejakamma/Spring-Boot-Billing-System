@@ -47,5 +47,9 @@ Protected branch approvals, production IAM/KMS grants, live secrets rotation, a 
 - `gradlew.bat verify :billing-service:bootJar :event-worker:bootJar :config-server:bootJar --no-daemon --console=plain`: passed. This runs module unit/workflow tests, frontend tests/build, both coverage gates, and assembles all three executable jars.
 - `gradlew.bat :system-tests:infrastructureTest --no-daemon --console=plain`: passed against MySQL 8.4, RabbitMQ, and MongoDB Testcontainers with independent billing and worker application contexts.
 - `python -m unittest discover -s ci -p 'test_*.py'`: 2 tests passed.
+- Optional DynamoDB account projection uses AWS SDK for Java v2 conditional `PutItem`; unit tests cover full-state mapping, monotonic version conditions, and safe duplicate/stale handling. `infra/dynamodb-projection.yml` provisions the table with encryption, point-in-time recovery, and a table-scoped write policy.
+- `gradlew.bat verify :billing-service:bootJar :event-worker:bootJar :config-server:bootJar --no-daemon --console=plain`: passed after running outside the sandbox so Vitest/esbuild could spawn. Backend tests and coverage gates, frontend tests/build, and executable packaging all passed.
+- `gradlew.bat :system-tests:infrastructureTest --no-daemon --console=plain`: passed outside the sandbox with Docker/Testcontainers.
+- The optional DynamoDB adapter is unit-tested but was not run against DynamoDB Local or an AWS account. Attaching the generated IAM policy, provisioning the table, and validating AWS credentials/permissions remain deployment checks.
 - Baseline CI review found retired module references and a canary gate without rollback invocation; `.gitlab-ci.yml` now uses current modules and invokes the supplied rollback command on gate failure.
 - APM provider ingestion, production secrets/KMS, retention enforcement, cross-region recovery, real vendor contracts, and live traffic shifting remain environment-owned validation items.

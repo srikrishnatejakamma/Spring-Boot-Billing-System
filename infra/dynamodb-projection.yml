@@ -37,7 +37,7 @@ Resources:
               - dynamodb:PutItem
             Resource: !GetAtt AccountProjectionTable.Arn
 Outputs:
-  TableName:
+  ProvisionedTableName:
     Value: !Ref AccountProjectionTable
   TableArn:
     Value: !GetAtt AccountProjectionTable.Arn
