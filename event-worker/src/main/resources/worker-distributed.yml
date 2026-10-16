@@ -10,7 +10,7 @@ spring:
         await-termination-period: 30s
   config:
     import:
-      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - ${WORKER_CONFIG_IMPORT:configserver:${CONFIG_SERVER_URL:http://localhost:8888}}
       - optional:configtree:/run/secrets/
   cloud:
     config:

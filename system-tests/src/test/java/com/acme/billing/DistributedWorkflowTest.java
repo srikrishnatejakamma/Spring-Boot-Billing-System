@@ -13,6 +13,9 @@ import org.junit.jupiter.api.*;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.context.*;
 import org.testcontainers.containers.MySQLContainer;
@@ -40,6 +43,7 @@ class DistributedWorkflowTest {
     static final java.util.concurrent.atomic.AtomicInteger platformCalls = new java.util.concurrent.atomic.AtomicInteger();
     static final java.util.concurrent.atomic.AtomicBoolean platformAvailable = new java.util.concurrent.atomic.AtomicBoolean(true);
     static final HttpServer platform = platform();
+    static ConfigurableApplicationContext worker;
     @DynamicPropertySource static void properties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", mysql::getJdbcUrl);
         registry.add("spring.datasource.username", mysql::getUsername);
@@ -50,6 +54,24 @@ class DistributedWorkflowTest {
         registry.add("spring.rabbitmq.password", rabbit::getAdminPassword);
         registry.add("spring.data.mongodb.uri", mongo::getReplicaSetUrl);
         registry.add("billing.platform-url", () -> "http://127.0.0.1:" + platform.getAddress().getPort());
+    }
+    @BeforeAll static void startWorker() {
+        worker = new SpringApplicationBuilder(com.acme.worker.WorkerApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties("spring.config.name=worker")
+                .run("--spring.profiles.active=distributed,security-test",
+                        "--spring.cloud.config.enabled=false",
+                        "--WORKER_CONFIG_IMPORT=optional:classpath:platform-defaults.yml",
+                        "--spring.datasource.url=" + mysql.getJdbcUrl(),
+                        "--spring.datasource.username=" + mysql.getUsername(),
+                        "--spring.datasource.password=" + mysql.getPassword(),
+                        "--spring.flyway.table=worker_flyway_schema_history",
+                        "--spring.rabbitmq.host=" + rabbit.getHost(),
+                        "--spring.rabbitmq.port=" + rabbit.getAmqpPort(),
+                        "--spring.rabbitmq.username=" + rabbit.getAdminUsername(),
+                        "--spring.rabbitmq.password=" + rabbit.getAdminPassword(),
+                        "--spring.data.mongodb.uri=" + mongo.getReplicaSetUrl(),
+                        "--worker.platform-url=http://127.0.0.1:" + platform.getAddress().getPort());
     }
     @Autowired AccountService accounts;
     @Autowired OutboxRepository events;
@@ -95,7 +117,7 @@ class DistributedWorkflowTest {
             assertThat(projection.findById(account.id, Document.class, "account_views").get("monthlyRate")).isEqualTo("149.00");
         });
     }
-    @AfterAll static void stopPlatform() { platform.stop(0); }
+    @AfterAll static void stopPlatform() { if (worker != null) worker.close(); platform.stop(0); }
     static HttpServer platform() {
         try {
             var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

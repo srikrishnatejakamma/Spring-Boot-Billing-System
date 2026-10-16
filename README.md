@@ -1,129 +1,172 @@
-# Ledger — Billing Control Center
+# Billing Control Center
 
-A runnable billing-account use case built from [requirement.txt](requirement.txt): Java 21, **Spring Boot 3**, a **Gradle multi-module build**, and a **React** operations console.
+A runnable billing-account and ledger system that demonstrates correctness-focused backend engineering with Java 21 and Spring Boot 3. It includes an operator console, REST and GraphQL APIs, an immutable double-entry ledger, and an independently executable event worker for synchronizing account changes with external systems.
 
-Create billing accounts, change plans or account status, inspect versioned events, simulate a billing-platform outage, and recover failed deliveries. All figures in the UI come from the backend; subscription prices use exact decimal arithmetic.
+## Features
 
-## Run the standalone demo
+- **Billing account lifecycle:** Create accounts, update plans, suspend or close accounts, and inspect recurring revenue. Prices are authoritative backend values and use `BigDecimal` decimal arithmetic.
+- **Idempotent, concurrency-safe commands:** Account creation and ledger posting accept idempotency keys. Optimistic versions reject stale account updates with HTTP 409.
+- **Double-entry ledger:** Post balanced debit/credit transactions, retain immutable transactions and entries, and review account history. Ledger support is enabled in the demo profile; it can be controlled by configuration in other profiles.
+- **Transactional event delivery:** Account state, sync cursor, and immutable outbox event commit together. RabbitMQ publication uses durable messages, publisher confirms, and mandatory routing.
+- **Independent synchronization worker:** The worker owns its inbox, leases, and delivery reports. It consumes event IDs, deduplicates replays, preserves per-account version order, and updates an external billing-platform endpoint and a MongoDB projection.
+- **Failure recovery and resilience:** Bounded retries with backoff, dead-letter handling, operator retry, destination circuit breaking, rate limiting, and outage simulation.
+- **Operator views and APIs:** React dashboard, account forms, event stream, audit history, recovery controls, GraphQL queries, and GraphiQL explorer.
+- **Security and audit:** Distributed services validate JWT issuer, audience, signature, and expiry, then enforce scopes for protected operations. Mutations write append-only audit records with actor and request correlation details. The local demo profile intentionally disables authentication.
+- **Centralized configuration and operations:** Spring Cloud Config Server, environment/config-tree secret inputs, health/readiness probes, structured logs, Micrometer metrics, OpenTelemetry tracing settings, and optional Datadog metrics and canary quality gate.
+- **Schema and quality controls:** Flyway migrations, Hibernate schema validation, migration compatibility coverage, JaCoCo coverage gates, architecture tests, unit/workflow tests, and Docker-backed system tests.
 
-Prerequisites: **JDK 21** and **Node.js 22** with npm. The Gradle wrapper is included; no globally installed Gradle is needed. Initial builds download dependencies.
+## Technology stack
 
-From this directory in PowerShell:
+| Area | Technologies |
+| --- | --- |
+| Backend | Java 21, Spring Boot 3.5, Spring MVC, Spring Data JPA, Hibernate |
+| API | REST, GraphQL with Netflix DGS, GraphiQL, Bean Validation |
+| Service configuration and security | Spring Cloud Config, Spring Security OAuth 2.0 Resource Server, JWT/JWK |
+| Messaging and resilience | RabbitMQ, Spring AMQP, Resilience4j circuit breaker and rate limiter |
+| Persistence | MySQL 8.4, MongoDB 7, H2 for the local demo, Flyway |
+| Frontend | React 19, Vite 6, Lucide React |
+| Observability | Spring Boot Actuator, Micrometer, OpenTelemetry OTLP tracing, Datadog metrics |
+| Build and validation | Gradle multi-module build, JUnit 5, Mockito, AssertJ, Awaitility, Testcontainers, ArchUnit, Vitest, GitLab CI |
+| Local infrastructure | Docker Compose, Node.js 22 billing-platform simulator |
+
+The external platform is a generic HTTP contract simulator, not a Zuora integration. The project does not charge payment cards or generate invoices. AWS SQS, Kafka, DynamoDB, and vendor-specific billing SDKs are not used by this implementation.
+
+## Run the local demo
+
+Prerequisites: **JDK 21** and **Node.js 22** with npm. The Gradle wrapper is included. The first build downloads Java dependencies.
+
+From the repository root in PowerShell:
 
 ```powershell
-# Terminal 1 — Spring Boot, http://localhost:8080
-.\gradlew.bat :billing-api:bootRun
+# Terminal 1 — Spring Boot API at http://localhost:8080
+.\gradlew.bat :billing-service:bootRun
 
-# Terminal 2 — React, http://localhost:5173
+# Terminal 2 — React console at http://localhost:5173
 cd frontend
 npm ci
 npm run dev
 ```
 
-Open **http://localhost:5173**. Eight sample accounts are seeded on the first run. The ledger persists in `data/`; the explicitly labeled demo destination is an in-memory simulation and rebuilds from retained events when the application restarts.
+Open **http://localhost:5173**. The demo profile seeds sample accounts and stores its H2 ledger under `data/`. Delivery runs locally in the billing service and uses an in-memory destination simulation. The demo profile is for local evaluation and does not require MySQL, RabbitMQ, or MongoDB.
 
-On macOS/Linux use `./gradlew` (run `chmod +x gradlew` once if needed). All other commands are the same.
-
-To build a single executable containing the React frontend:
+To package the frontend into the executable service jar:
 
 ```powershell
-.\gradlew.bat :billing-api:bootJar
-java -jar billing-api/build/libs/billing-api-1.0.0.jar
+.\gradlew.bat :billing-service:bootJar
+java -jar billing-service/build/libs/billing-service-1.0.0.jar
 ```
 
-Then open **http://localhost:8080**. Stop the development backend before running the jar on the same port.
+Open **http://localhost:8080**. Stop any other service using that port first.
 
-## Try these workflows
-
-1. **Onboard an account.** Select **New account**, enter a company, billing email, and plan. Its account record and synchronization event commit together. Watch the sync state become **Synced**.
-2. **Change a plan safely.** Open an account and select a new plan. The monthly rate updates and a new version is emitted. An update with an outdated version receives HTTP 409. Closed accounts remain read-only.
-3. **Recover from an outage.** Open **Reliability → Simulate platform outage**, then create or edit an account. Inspect the event’s retries in **Event stream**, restore the platform, and watch automatic recovery. Six consecutive failures move an event to dead letter; select **Retry now** after restoring the destination.
-4. **Query the account graph.** Open **GraphQL explorer** and run the query below. REST handles commands; Netflix DGS handles GraphQL reads.
-
-```graphql
-query BillingWorkspace {
-  overview { activeAccounts monthlyRevenue pendingEvents failedEvents }
-  accounts { id company plan version syncStatus syncedVersion }
-  events { id accountId accountVersion status attempts lastError }
-}
-```
+On macOS or Linux use `./gradlew` instead of `gradlew.bat` (run `chmod +x gradlew` once if needed).
 
 ## Run the distributed profile
 
-Requires a running Docker daemon. Docker Compose provides MySQL 8.4, RabbitMQ with management UI, MongoDB, and an HTTP billing-platform simulator. This profile starts with an empty ledger.
+Requires Docker and a running Docker daemon. Compose starts MySQL 8.4, RabbitMQ with management UI, MongoDB 7, and the sample HTTP billing platform. The service processes are started separately so the billing API and worker remain independent.
 
 ```powershell
+# Start infrastructure
 docker compose up -d --wait
-.\gradlew.bat :billing-api:bootRun --args="--spring.profiles.active=distributed"
-# Run the React dev server in a second terminal as above.
+
+# Terminal 1 — configuration server at http://localhost:8888
+.\gradlew.bat :config-server:bootRun
+
+# Terminal 2 — billing API at http://localhost:8080
+.\gradlew.bat :billing-service:bootRun --args="--spring.profiles.active=distributed"
+
+# Terminal 3 — event worker at http://localhost:8082
+.\gradlew.bat :event-worker:bootRun --args="--spring.config.name=worker --spring.profiles.active=distributed"
+
+# Terminal 4 — React console at http://localhost:5173
+cd frontend
+npm ci
+npm run dev
 ```
 
-Or build and run the entire application in Docker:
+The local Config Server credentials default to `config-local` / `config-local-password`; the sample repository configuration uses local development credentials for the services and broker. Replace them through environment variables or mounted secrets outside local development. The distributed profile starts with an empty ledger. The simulator is at **http://localhost:8090/accounts** and RabbitMQ management is at **http://localhost:15672** (`billing` / `billing-local`).
 
-```powershell
-docker compose --profile app up --build -d --wait
-```
-
-Open http://localhost:8080 for the containerized app. RabbitMQ management is at http://localhost:15672 (`billing` / `billing-local`). Inspect the mock platform at http://localhost:8090/accounts. Stop the services with `docker compose --profile app down`; named datastore volumes are preserved.
-
-The mock implements an idempotent, version-aware `PUT /accounts/{id}` contract. It is an example integration, **not a Zuora client**. To simulate a real HTTP integration failure:
+To simulate an HTTP platform outage, then restore it:
 
 ```powershell
 Invoke-RestMethod http://localhost:8090/admin/outage -Method Put -ContentType application/json -Body '{"enabled":true}'
-# Change an account, then restore the destination:
+# Make an account change and inspect the retry state in the console.
 Invoke-RestMethod http://localhost:8090/admin/outage -Method Put -ContentType application/json -Body '{"enabled":false}'
 ```
+
+An event that exhausts its retry policy is marked dead letter and can be retried from the operator console. The simulator enforces an idempotent, version-aware `PUT /accounts/{id}` contract. Stop the Compose infrastructure with `docker compose down`; named data volumes are preserved.
 
 ## Verify
 
 ```powershell
-.\gradlew.bat verify                         # Java tests, coverage gate, React tests/build
-.\gradlew.bat :billing-api:infrastructureTest # Actual MySQL + RabbitMQ + MongoDB via Testcontainers
+.\gradlew.bat verify
+.\gradlew.bat :system-tests:infrastructureTest
 python -m unittest discover -s ci -p 'test_*.py'
 ```
 
-The infrastructure task requires Docker and is deliberately separate from the fast H2 tests. It is mandatory in the included GitLab pipeline. Coverage enforces 80% line coverage on account command processing and worker inbox handling; reports are under `billing-service/build/reports/jacoco/test/html/index.html` and `event-worker/build/reports/jacoco/test/html/index.html`.
-
-The build defaults to one Gradle worker to keep Java and React verification reliable on development machines with limited free memory. On a larger machine, override this with `--max-workers=4`.
+`verify` runs the Gradle module tests, targeted Java coverage checks, and frontend tests/build. The system test task uses Testcontainers to exercise real MySQL, RabbitMQ, and MongoDB and requires Docker. The GitLab pipeline also runs these checks before packaging, with deployment and promotion stages enabled only when the owning environment supplies its canary, rollback, monitor, and promotion settings.
 
 ## Project layout
 
 | Module / path | Responsibility |
 | --- | --- |
-| `common-domain` | Framework-independent value types, enums, exact monetary rules |
-| `common-dto` | Versioned API and event contracts |
-| `billing-integrations` | Demo destination and external REST + MongoDB adapters |
-| `billing-service` | Spring Boot REST/GraphQL API, JPA, Flyway, ledger and transactional outbox |
-| `event-worker` | Independently executable inbox, lease, destination and report processing |
-| `platform-support` | Shared security, correlation and observability configuration |
-| `frontend` | React + Vite, dashboard, forms, event operations, recovery lab |
-| `infra` | Idempotent billing-platform HTTP simulator |
+| `common-domain` | Framework-independent domain values, validation, and monetary rules |
+| `common-dto` | Versioned API, event, and delivery-report contracts |
+| `billing-integrations` | Billing-platform HTTP adapter, MongoDB projection, and resilience decorators |
+| `platform-support` | Shared JWT security, authorization, audit context, and observability configuration |
+| `billing-service` | Account and ledger REST APIs, DGS GraphQL API, JPA persistence, Flyway migrations, transactional outbox, and demo delivery |
+| `event-worker` | Independent RabbitMQ consumer, SQL inbox/leases, MongoDB projection, external destination delivery, and reports |
+| `config-server` | Spring Cloud Config Server with a native local configuration repository |
+| `system-tests` | Cross-service infrastructure tests using Testcontainers |
+| `frontend` | React/Vite operator dashboard and recovery console |
+| `infra` | Idempotent HTTP billing-platform simulator |
 | `ci` | Datadog monitor quality gate and its tests |
-| `.gitlab-ci.yml` | Tests, coverage, infrastructure tests, packaging, optional canary/promotion gates |
+| `.gitlab-ci.yml` | Verification, infrastructure, packaging, and optional canary/gate/promotion stages |
 
-Billing and the event worker are independently executable services with separate persistence ownership. See [use cases and architecture](docs/use-cases.md) for consistency guarantees and tradeoffs.
+See [use cases and consistency model](docs/use-cases.md), [operations and deployment notes](docs/operations.md), and [architecture decisions](docs/architecture-decisions.md) for workflow details and system boundaries.
 
 ## API quick reference
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/accounts` | List current ledger account state and sync cursor |
-| `GET /api/accounts/{id}` | Read one account |
-| `POST /api/accounts` | Create; requires `Idempotency-Key` header |
-| `PUT /api/accounts/{id}` | Update; requires current `version` in request body |
-| `GET /api/audit` | Read recent append-only mutation audit entries; requires `billing.audit` scope in secured mode |
-| `GET /api/overview` | Account counts, recurring revenue, delivery counts |
-| `GET /api/events?accountId=…` | Latest 100 events, or all events for one account |
-| `POST /api/events/{id}/retry` | Reset failed event for immediate dispatch |
-| `PUT /api/demo/platform` | Demo-only outage switch: `{"available":false}` |
-| `GET /api/demo/projection` | Demo destination state |
-| `POST /graphql`, `GET /graphiql` | DGS query API and explorer |
-| `GET /actuator/health`, `/actuator/metrics` | Health, delivery counters, outbox gauges |
+| `GET /api/accounts?limit=100` | List accounts and their synchronization state |
+| `GET /api/accounts/{id}` | Read an account |
+| `POST /api/accounts` | Create an account; requires `Idempotency-Key` |
+| `PUT /api/accounts/{id}` | Update an account using its current `version` |
+| `GET /api/accounts/{id}/transactions?limit=50` | Read ledger history when ledger support is enabled |
+| `POST /api/accounts/{id}/transactions` | Post a balanced ledger transaction |
+| `GET /api/audit` | Read recent append-only audit entries; requires `billing.audit` |
+| `GET /api/overview` | Account counts, recurring revenue, and delivery counts |
+| `GET /api/events?accountId=…` | Read recent events, optionally filtered by account |
+| `POST /api/events/{id}/retry` | Retry an eligible failed event |
+| `GET /api/worker/events` | Read worker delivery reports (authorized in secured mode) |
+| `POST /graphql`, `GET /graphiql` | DGS query API and interactive explorer |
+| `GET /actuator/health`, `/actuator/metrics` | Health, readiness, delivery metrics, and outbox gauges |
 
-Account creation body: `{"company":"Acme","billingEmail":"billing@acme.example","plan":"GROWTH"}`. Valid plans: `STARTER` ($49), `GROWTH` ($149), `ENTERPRISE` ($499). Prices are monthly USD subscription list prices; the app does not charge cards or generate invoices. Update adds `"status":"ACTIVE","version":0`; status may also be `SUSPENDED` or `CLOSED`.
+Account creation body: `{"company":"Acme","billingEmail":"billing@acme.example","plan":"GROWTH"}`. Plans are `STARTER` ($49), `GROWTH` ($149), and `ENTERPRISE` ($499) per month. Account status is `ACTIVE`, `SUSPENDED`, or `CLOSED`. These are subscription list prices; the application does not charge cards or issue invoices.
 
-## Deployment and observability
+## Configuration and deployment notes
 
-Read [deployment and migration notes](docs/operations.md) for Datadog configuration, canary monitor queries, GitLab variables, and schema migration practices. Deployment jobs stay disabled until the owning environment supplies actual rollout and promotion commands and monitor IDs.
+Distributed mode uses the Config Server at `http://localhost:8888` by default. Service connection strings, JWT issuer/audience settings, tracing, and Datadog export can be supplied through environment variables and config-tree secrets. The sample app binds to loopback by default; container deployments can override `SERVER_ADDRESS`.
 
-The application binds to loopback by default and is intended as a local engineering demonstration. Add authentication, authorization, tenant isolation, secrets management, an audited operator identity, and retention rules before exposing real account data. No compliance certification, real payments, or production deployment is implied.
+Read [deployment and migration notes](docs/operations.md) for Datadog monitor configuration, GitLab variables, schema migration practices, and security boundaries. Canary deployment commands and monitor IDs are environment-owned and are not active by default.
+
+This repository is an engineering demonstration. Before exposing real account data, configure a trusted OIDC provider, production-grade authorization and tenant isolation, managed secrets, database access controls, retention rules, and deployment-specific operational safeguards. The project does not claim compliance certification or production readiness.
+
+## Enterprise controls: implemented and remaining
+
+The following matrix describes the scope demonstrated by this repository. Configuration and guidance are not evidence that a production control has been deployed or independently validated.
+
+| Area | Implemented in this project | Not implemented or environment-owned |
+| --- | --- | --- |
+| Financial audit and compliance | Immutable ledger transactions and entries; account and ledger mutations record actor, trace/correlation ID, UTC timestamp, action, target, and justification. Audit reads are scope-protected. | This is not a SOC 1/SOC 2 control certification. Production database grants, tamper evidence, independent audit review, approved retention, and compliance evidence must be supplied by the operating environment. |
+| Data protection and retention | JWT validation and operation scopes are configurable; secrets can be provided through environment variables or Spring config-tree mounts. | KMS-backed encryption-at-rest, field-level PII/payment-data encryption or masking, automatic key/credential rotation, and GDPR/CCPA deletion-versus-ledger-retention policies are not implemented. Do not place live secrets in the sample configuration. |
+| Event consistency and concurrency | The billing service commits account state and an outbox event in one SQL transaction. A separate RabbitMQ worker processes event IDs with an inbox, leases, idempotency, version checks, and a MongoDB projection. Account updates use optimistic version checks. | This implementation does not use CDC, Kafka, or SQS. It has no distributed lock for multi-account billing-cycle operations; cross-aggregate locking would need a specific design if such workflows are added. |
+| Reconciliation | Delivery state, sync cursors, and destination outcomes are observable; failed events can be retried. | A periodic source-of-truth reconciliation engine that detects external drift and raises alerts is not included. |
+| Deployment and migrations | GitLab CI provides verification, packaging, an optional manual canary stage, a Datadog monitor gate, rollback command hook on gate failure, and manual promotion. Flyway migrations and expand/contract guidance are included. | Traffic percentages, ingress/service-mesh routing, deployment commands, monitor IDs, and production rollback behavior are supplied by the deployment environment. Expand/contract is guidance, not an automatically enforced zero-downtime guarantee. |
+| Integration and resilience testing | JUnit tests and a Testcontainers system test exercise MySQL, RabbitMQ, MongoDB, duplicate messages, and a simulated downstream outage. | Pact or other consumer-driven contract tests, LocalStack/DynamoDB, Kafka/SQS test infrastructure, and a broad chaos/fault-injection suite are not included. |
+| Rate limits and GraphQL safeguards | Resilience4j circuit breaking and rate limiting protect the external destination path; GraphQL reads use Netflix DGS. | Vendor-specific quota/backpressure policies and GraphQL depth or complexity limits are not implemented. |
+| Monetary precision | Monetary values use `BigDecimal`; ledger amounts are stored as `DECIMAL(12,2)`. Input validation rejects values that cannot be represented exactly to two decimal places (`RoundingMode.UNNECESSARY`). | Currency conversion, multi-currency rounding policy, and a broader financial rounding governance framework are outside this demo. |
+| Tracing and shutdown | Micrometer/OpenTelemetry tracing settings, request correlation IDs, graceful application shutdown, worker listener shutdown timeouts, and scheduler termination waits are configured. | End-to-end W3C trace-context continuity across RabbitMQ and downstream calls has not been validated as a production tracing guarantee. Orchestrator-level draining and deployment behavior need environment testing. |
+| Disaster recovery and DLQ operations | SQL delivery events expose retry status and support operator retry; the worker also defines a RabbitMQ poison-message queue. | RPO/RTO targets, regional failover, split-brain behavior, database/broker restore procedures, and a dedicated inspect/sanitize/re-drive workflow for arbitrary broker DLQ messages are not defined here. |
+
+For detailed consistency guarantees, tradeoffs, and operational gaps, see [use cases](docs/use-cases.md), [operations](docs/operations.md), and the [implementation plan](docs/implementation-plan.md).
