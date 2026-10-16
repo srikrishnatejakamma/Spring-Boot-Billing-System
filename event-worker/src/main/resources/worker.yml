@@ -1,4 +1,11 @@
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  task:
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
   application:
     name: event-worker
   config:

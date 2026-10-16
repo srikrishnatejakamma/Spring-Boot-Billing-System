@@ -20,7 +20,7 @@ Actuator exposes `/actuator/health`, `/actuator/health/liveness`, `/actuator/hea
 | `billing.outbox.pending` | Pending, published, or retrying events |
 | `billing.outbox.dead` | Events requiring operator replay |
 
-Logs correlate operations with `eventId`, `accountId`, version or attempt; billing emails and full vendor error bodies are not written to application failure logs or error receipts. Deploy an APM agent independently if distributed traces are required.
+Logs correlate operations with `eventId`, `accountId`, version or attempt. Mutations append an audit row with request trace/correlation ID, actor, UTC timestamp, action, target, and supplied justification (or an action label when omitted). Audit reads require the `billing.audit` scope. Billing emails and full vendor error bodies are not written to application failure logs or error receipts. Deploy an APM agent independently if distributed traces are required.
 
 Enable export with `DD_METRICS_ENABLED=true`, `DD_API_KEY`, `DD_APP_KEY`, `DD_ENV`, and the site-specific HTTPS `DD_API_URI`. Configure credentials as masked/protected CI or runtime secrets. The exporter uses a 30-second reporting interval. API keys do not belong in frontend configuration.
 
@@ -42,12 +42,13 @@ The deployment stages are templates for the owning environment. Set these protec
 
 - `CANARY_DEPLOY_COMMAND`: a real command/script available inside the job image that deploys the packaged artifact to a small canary population and waits for readiness.
 - `PROMOTE_COMMAND`: a real command/script that promotes the same artifact, with a rollback procedure owned by the deployment platform.
+- `ROLLBACK_COMMAND`: a real command/script that returns canary traffic to the stable version when the Datadog gate fails.
 - `DD_MONITOR_IDS`: comma-separated numeric IDs for the canary-scoped monitors.
 - `DD_API_KEY`, `DD_APP_KEY`, optional `DD_API_URI`: monitor-read credentials and Datadog site.
 
 Replace the Alpine deployment job image with the environment’s deployment tooling when needed. The supplied commands run only in GitLab jobs after manual approval; no deployment is performed by building this repository. Configure the canary runtime with `DD_ENV=canary`, representative traffic, and matching monitor tags.
 
-After the canary command succeeds, the monitor job waits 120 seconds for metrics, then checks every 30 seconds for six samples. Set `DD_WARMUP_SECONDS`, `DD_GATE_INTERVAL_SECONDS`, and `DD_GATE_CHECKS` to match the actual monitor evaluation window. Passing gates permit a separate manual promotion. No-data monitors and traffic checks are essential to distinguish a healthy canary from an idle one.
+After the canary command succeeds, the monitor job waits 120 seconds for metrics, then checks every 30 seconds for six samples. Set `DD_WARMUP_SECONDS`, `DD_GATE_INTERVAL_SECONDS`, and `DD_GATE_CHECKS` to match the actual monitor evaluation window. A failing gate invokes `ROLLBACK_COMMAND`; passing gates permit a separate manual promotion. No-data monitors and traffic checks are essential to distinguish a healthy canary from an idle one. The repository does not define traffic percentages; the deployment command must implement the owning platform's rollout stages.
 
 ## Schema and entity migrations
 
@@ -65,6 +66,6 @@ For irreversible changes, use reviewed backups, a restore rehearsal, an explicit
 
 ## Review and security boundaries
 
-This is a local example with no end-user authentication. Before handling real financial-account data, implement authenticated operator and service identities, tenant-scoped authorization, an append-only audit history including operator identity, encrypted transport and storage, managed credentials, retention and deletion rules, backup verification, and pagination/operational capacity limits. The current event history records account changes but is not a compliance audit log.
+This is a local example with no end-user authentication. Before handling real financial-account data, implement tenant-scoped authorization, field-level encryption where required, managed KMS/secret rotation, retention and deletion rules, backup verification, and pagination/operational capacity limits. The local audit table is append-only through application workflows; production database grants, tamper evidence, retention schedules, and independent audit review remain deployment controls. The demo does not establish SOC 1/SOC 2 compliance.
 
 Independently review generated changes, dependency updates, financial calculations, transaction boundaries, replay behavior and migration plans. Run `verify` and the real-infrastructure suite; inspect coverage and failure logs. AI assistance does not replace engineering review or production validation.

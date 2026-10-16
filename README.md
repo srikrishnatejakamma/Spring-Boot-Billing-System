@@ -82,7 +82,7 @@ Invoke-RestMethod http://localhost:8090/admin/outage -Method Put -ContentType ap
 python -m unittest discover -s ci -p 'test_*.py'
 ```
 
-The infrastructure task requires Docker and is deliberately separate from the fast H2 tests. It is mandatory in the included GitLab pipeline. Coverage enforces 80% line coverage on account command processing and outbox failure-state behavior; reports are under `billing-api/build/reports/jacoco/test/html/index.html`.
+The infrastructure task requires Docker and is deliberately separate from the fast H2 tests. It is mandatory in the included GitLab pipeline. Coverage enforces 80% line coverage on account command processing and worker inbox handling; reports are under `billing-service/build/reports/jacoco/test/html/index.html` and `event-worker/build/reports/jacoco/test/html/index.html`.
 
 The build defaults to one Gradle worker to keep Java and React verification reliable on development machines with limited free memory. On a larger machine, override this with `--max-workers=4`.
 
@@ -90,15 +90,18 @@ The build defaults to one Gradle worker to keep Java and React verification reli
 
 | Module / path | Responsibility |
 | --- | --- |
-| `billing-core` | Framework-independent event contracts, enums, exact plan prices |
+| `common-domain` | Framework-independent value types, enums, exact monetary rules |
+| `common-dto` | Versioned API and event contracts |
 | `billing-integrations` | Demo destination and external REST + MongoDB adapters |
-| `billing-api` | Spring Boot, REST, Netflix DGS, JPA, Flyway, transactional outbox, worker |
+| `billing-service` | Spring Boot REST/GraphQL API, JPA, Flyway, ledger and transactional outbox |
+| `event-worker` | Independently executable inbox, lease, destination and report processing |
+| `platform-support` | Shared security, correlation and observability configuration |
 | `frontend` | React + Vite, dashboard, forms, event operations, recovery lab |
 | `infra` | Idempotent billing-platform HTTP simulator |
 | `ci` | Datadog monitor quality gate and its tests |
 | `.gitlab-ci.yml` | Tests, coverage, infrastructure tests, packaging, optional canary/promotion gates |
 
-This is a **modular application with an event-driven worker**, not a fleet of separately deployed microservices. In distributed mode, the publisher and consumer intentionally share the ledger and its durable event receipts. See [use cases and architecture](docs/use-cases.md) for consistency guarantees, tradeoffs, and the path to independent services.
+Billing and the event worker are independently executable services with separate persistence ownership. See [use cases and architecture](docs/use-cases.md) for consistency guarantees and tradeoffs.
 
 ## API quick reference
 
@@ -108,6 +111,7 @@ This is a **modular application with an event-driven worker**, not a fleet of se
 | `GET /api/accounts/{id}` | Read one account |
 | `POST /api/accounts` | Create; requires `Idempotency-Key` header |
 | `PUT /api/accounts/{id}` | Update; requires current `version` in request body |
+| `GET /api/audit` | Read recent append-only mutation audit entries; requires `billing.audit` scope in secured mode |
 | `GET /api/overview` | Account counts, recurring revenue, delivery counts |
 | `GET /api/events?accountId=…` | Latest 100 events, or all events for one account |
 | `POST /api/events/{id}/retry` | Reset failed event for immediate dispatch |

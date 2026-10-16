@@ -4,6 +4,7 @@ import com.acme.billing.account.*;
 import com.acme.billing.core.*;
 import com.acme.billing.dto.PostTransaction;
 import com.acme.billing.events.AccountEventRecorder;
+import com.acme.billing.audit.AuditWriter;
 import com.acme.platform.AccessPolicy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.PageRequest;
@@ -21,9 +22,10 @@ import java.util.*;
 public class LedgerService {
     private final AccountRepository accounts; private final LedgerRepository ledger; private final EntryRepository entries;
     private final AccountEventRecorder events; private final AccessPolicy access; private final ObjectMapper json;
+    private final AuditWriter audit;
     public LedgerService(AccountRepository accounts, LedgerRepository ledger, EntryRepository entries,
-                         AccountEventRecorder events, AccessPolicy access, ObjectMapper json) {
-        this.accounts = accounts; this.ledger = ledger; this.entries = entries; this.events = events; this.access = access; this.json = json;
+                         AccountEventRecorder events, AccessPolicy access, ObjectMapper json, AuditWriter audit) {
+        this.accounts = accounts; this.ledger = ledger; this.entries = entries; this.events = events; this.access = access; this.json = json; this.audit = audit;
     }
     @Transactional public LedgerViews.Transaction post(String id, PostTransaction input, String key) {
         if (key == null || !key.matches("[A-Za-z0-9_-]{8,100}")) throw bad("A valid Idempotency-Key is required");
@@ -52,6 +54,7 @@ public class LedgerService {
         var credit = entry(transaction.id, input.kind() == TransactionKind.CHARGE ? "REVENUE_USD" : "AR_USD", "CREDIT", amount);
         entries.saveAll(List.of(debit, credit));
         events.record(account, "LEDGER_POSTED");
+        audit.append("LEDGER_POSTED", transaction.id, input.description());
         return LedgerViews.Transaction.of(transaction);
     }
     @Transactional(readOnly = true) public List<LedgerViews.Transaction> history(String id, int limit) {

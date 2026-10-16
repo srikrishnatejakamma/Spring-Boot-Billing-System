@@ -3,6 +3,7 @@ package com.acme.billing;
 import com.acme.billing.dto.*;
 
 import com.acme.billing.account.*;
+import com.acme.billing.audit.*;
 import com.acme.billing.core.*;
 import com.acme.billing.events.*;
 import com.acme.billing.integrations.DemoDestination;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import java.util.*;
 import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.*;
@@ -30,6 +32,8 @@ class AccountWorkflowTest {
     @Autowired OutboxRepository events;
     @Autowired SyncRepository syncs;
     @Autowired IdempotencyRepository keys;
+    @Autowired AuditRepository audit;
+    @Autowired JdbcTemplate jdbc;
     @Autowired AccountService service;
     @Autowired OutboxDispatcher dispatcher;
     @Autowired DeliveryProcessor processor;
@@ -38,11 +42,11 @@ class AccountWorkflowTest {
     @Autowired QueryService queries;
 
     @BeforeEach void clear() {
-        events.deleteAll(); keys.deleteAll(); syncs.deleteAll(); accounts.deleteAll(); destination.setAvailable(true);
+        jdbc.update("DELETE FROM billing_audit_log"); events.deleteAll(); keys.deleteAll(); syncs.deleteAll(); accounts.deleteAll(); destination.setAvailable(true);
     }
 
     @Test void onboardingIsIdempotentAndWritesOneTransactionalEvent() throws Exception {
-        String body = "{\"company\":\"Acme\",\"billingEmail\":\"billing@acme.example\",\"plan\":\"GROWTH\"}";
+        String body = "{\"company\":\"Acme\",\"billingEmail\":\"billing@acme.example\",\"plan\":\"GROWTH\",\"justification\":\"Customer onboarding request\"}";
         String first = mvc.perform(post("/api/accounts").header("Idempotency-Key", "onboard-key-01")
                 .contentType("application/json").content(body)).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String second = mvc.perform(post("/api/accounts").header("Idempotency-Key", "onboard-key-01")
@@ -50,6 +54,12 @@ class AccountWorkflowTest {
         assertThat(json.readTree(first).get("id")).isEqualTo(json.readTree(second).get("id"));
         assertThat(accounts.count()).isEqualTo(1); assertThat(events.count()).isEqualTo(1);
         assertThat(events.findAll().getFirst().accountVersion).isZero();
+        var auditRecord = audit.findAll().getFirst();
+        assertThat(auditRecord.action).isEqualTo("ACCOUNT_CREATED");
+        assertThat(auditRecord.actor).isEqualTo("demo-operator");
+        assertThat(auditRecord.traceId).isNotBlank();
+        assertThat(auditRecord.justification).isEqualTo("Customer onboarding request");
+        assertThat(auditRecord.occurredAt).isNotNull();
     }
 
     @Test void reusingAKeyForDifferentInputIsRejectedWithoutNewWrites() throws Exception {
@@ -62,11 +72,14 @@ class AccountWorkflowTest {
 
     @Test void staleVersionReturns409AndDoesNotEmitAnotherEvent() throws Exception {
         var account = create();
-        String body = json.writeValueAsString(new AccountCommands.Update("Acme", account.billingEmail, Plan.ENTERPRISE, AccountStatus.ACTIVE, 0L));
+        String body = json.writeValueAsString(new AccountCommands.Update("Acme", account.billingEmail, Plan.ENTERPRISE, AccountStatus.ACTIVE, 0L, "Approved plan change"));
         mvc.perform(put("/api/accounts/" + account.id).contentType("application/json").content(body))
                 .andExpect(status().isOk()).andExpect(jsonPath("version").value(1)).andExpect(jsonPath("monthlyRate").value("499.00"));
         mvc.perform(put("/api/accounts/" + account.id).contentType("application/json").content(body)).andExpect(status().isConflict());
         assertThat(events.count()).isEqualTo(2);
+        assertThat(audit.findAllByOrderByOccurredAtDesc(org.springframework.data.domain.PageRequest.of(0, 10)))
+                .extracting(row -> row.justification).contains("Customer onboarding request", "Approved plan change");
+        assertThat(audit.count()).isEqualTo(2);
     }
 
     @Test void concurrentUpdatesCommitOnlyOneVersion() throws Exception {
@@ -80,6 +93,7 @@ class AccountWorkflowTest {
         }
         assertThat(accounts.findById(account.id).orElseThrow().version).isEqualTo(1);
         assertThat(events.count()).isEqualTo(2);
+        assertThat(audit.count()).isEqualTo(2);
     }
 
     @Test void platformFailureIsRetriedWithoutLosingTheAccount() {

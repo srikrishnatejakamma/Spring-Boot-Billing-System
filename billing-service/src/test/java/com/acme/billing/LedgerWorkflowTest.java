@@ -5,6 +5,7 @@ import com.acme.billing.core.*;
 import com.acme.billing.dto.*;
 import com.acme.billing.events.*;
 import com.acme.billing.ledger.*;
+import com.acme.billing.audit.AuditRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.*;
@@ -26,9 +28,11 @@ class LedgerWorkflowTest {
     @Autowired AccountService service; @Autowired AccountRepository accounts; @Autowired LedgerService ledger;
     @Autowired LedgerRepository transactions; @Autowired EntryRepository entries; @Autowired OutboxRepository events;
     @Autowired IdempotencyRepository keys; @Autowired SyncRepository syncs; @Autowired ObjectMapper json;
+    @Autowired AuditRepository audit;
+    @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc; @Autowired EntityManagerFactory factory;
     @BeforeEach void clear() {
-        entries.deleteAll(); transactions.deleteAll(); events.deleteAll(); keys.deleteAll(); syncs.deleteAll(); accounts.deleteAll();
+        jdbc.update("DELETE FROM billing_audit_log"); entries.deleteAll(); transactions.deleteAll(); events.deleteAll(); keys.deleteAll(); syncs.deleteAll(); accounts.deleteAll();
     }
     @Test void chargeAndPaymentProduceBalancedEntriesAndExactReceivables() throws Exception {
         var account = account();
@@ -46,6 +50,8 @@ class LedgerWorkflowTest {
         var latest = events.findByAccountIdOrderByCreatedAtDesc(account.id).getFirst();
         assertThat(json.readValue(latest.payload, AccountChanged.class).account().outstandingBalance()).isEqualTo("49.70");
         assertThat(events.count()).isEqualTo(3);
+        assertThat(audit.findAll()).filteredOn(row -> row.action.equals("LEDGER_POSTED")).hasSize(2)
+                .allSatisfy(row -> assertThat(row.justification).isEqualTo("Synthetic test posting"));
     }
     @Test void repeatingAPostingKeyDoesNotApplyTheChargeTwice() {
         var account = account(); var input = posting(TransactionKind.CHARGE, "10.00", 0);

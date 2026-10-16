@@ -1,6 +1,8 @@
 spring:
   application:
     name: billing-service
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   config:
     import: optional:classpath:platform-defaults.yml
   profiles:
@@ -38,6 +40,7 @@ spring:
       - org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration
 server:
   address: 127.0.0.1
+  shutdown: graceful
   error:
     include-message: always
 management:

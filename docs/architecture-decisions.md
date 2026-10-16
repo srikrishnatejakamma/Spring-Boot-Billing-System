@@ -14,14 +14,14 @@ Worker results are published durably back to billing. Result revisions and repla
 
 ## Domain use cases
 
-Account onboarding and updates retain idempotency and optimistic locking. Ledger transactions are immutable, contain balanced debit/credit entries, and update a versioned account balance in the same transaction. USD amounts are exact decimals with two fractional digits. A payment cannot exceed outstanding receivables. An account with an outstanding balance cannot be closed.
+Account onboarding and updates retain idempotency and optimistic locking. Account and ledger mutations append an audit row in the same transaction with trace ID, actor, timestamp, action, target, and justification. Audit rows have no application update/delete workflow and are exposed only with the `billing.audit` scope. Ledger transactions are immutable, contain balanced debit/credit entries, and update a versioned account balance in the same transaction. USD amounts are exact decimals with two fractional digits. A payment cannot exceed outstanding receivables. An account with an outstanding balance cannot be closed.
 
 ## Access and configuration
 
 Secured mode validates JWT signatures, expiry, issuer, audience and scopes. Billing reads, billing writes, restricted account fields and event replay have separate scopes. React uses Authorization Code with PKCE; credentials and client secrets are not embedded in the browser bundle. Explicit demo mode is the only anonymous mode.
 
-Spring Cloud Config supplies shared non-secret settings. Secrets come from environment or mounted config trees; the local development OIDC provider is not a production identity service. Central configuration and the OIDC issuer are supplied by the deployment environment.
+Spring Cloud Config supplies shared non-secret settings. Secrets come from environment or mounted config trees; the local development OIDC provider is not a production identity service. Central configuration and the OIDC issuer are supplied by the deployment environment. KMS encryption, field-level encryption, managed secret rotation, and retention/deletion enforcement require deployment-specific controls and are not claimed by the demo.
 
 ## Operational boundaries
 
-Resilience controls defer work durably instead of fabricating a successful vendor response. Metrics, JSON logs and trace export support diagnosis. CI verifies code and migrations, scans dependencies/images, and publishes immutable images. Canary tooling prevents promotion and performs rollback on an unhealthy/no-data/error result. Live registry, identity-provider, Datadog and orchestrator verification require the owning environment and are recorded separately.
+Resilience controls defer work durably instead of fabricating a successful vendor response. Metrics, JSON logs and trace export support diagnosis. CI verifies code and migrations. Canary gate failure invokes the configured rollback command before failing the gate; deployment commands and live registry, identity-provider, Datadog and orchestrator verification require the owning environment and are recorded separately.

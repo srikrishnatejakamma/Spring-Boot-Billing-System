@@ -4,6 +4,7 @@ import com.acme.billing.dto.*;
 
 import com.acme.billing.core.*;
 import com.acme.billing.events.*;
+import com.acme.billing.audit.AuditWriter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
@@ -22,14 +23,17 @@ public class AccountService {
     private final IdempotencyRepository keys;
     private final AccountEventRecorder recorder;
     private final ObjectMapper json;
+    private final AuditWriter audit;
 
     public AccountService(AccountRepository accounts, SyncRepository syncs, IdempotencyRepository keys,
-                          AccountEventRecorder recorder, ObjectMapper json) {
-        this.accounts = accounts; this.syncs = syncs; this.keys = keys; this.recorder = recorder; this.json = json;
+                          AccountEventRecorder recorder, ObjectMapper json, AuditWriter audit) {
+        this.accounts = accounts; this.syncs = syncs; this.keys = keys; this.recorder = recorder; this.json = json; this.audit = audit;
     }
 
     @Transactional
     public BillingAccount create(AccountCommands.Create input, String key) {
+        if (input.justification() != null && input.justification().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "justification must not be blank when supplied");
         if (key == null || !key.matches("[A-Za-z0-9_-]{8,100}"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provide an Idempotency-Key of 8–100 letters, digits, underscores or hyphens");
         String fingerprint = fingerprint(input);
@@ -51,11 +55,14 @@ public class AccountService {
         syncs.save(new AccountSync(account.id));
         keys.saveAndFlush(new IdempotencyRecord(key, fingerprint, account.id));
         recorder.record(account, "ACCOUNT_CREATED");
+        audit.append("ACCOUNT_CREATED", account.id, input.justification());
         return account;
     }
 
     @Transactional
     public BillingAccount update(String id, AccountCommands.Update input) {
+        if (input.justification() != null && input.justification().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "justification must not be blank when supplied");
         var account = require(id);
         if (!Objects.equals(account.version, input.version()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This account changed. Refresh and try again with its current version");
@@ -71,6 +78,7 @@ public class AccountService {
         account.updatedAt = Instant.now();
         accounts.flush(); // @Version is assigned before the full-state event is serialized.
         recorder.record(account, "ACCOUNT_UPDATED");
+        audit.append("ACCOUNT_UPDATED", account.id, input.justification());
         return account;
     }
 
@@ -81,7 +89,7 @@ public class AccountService {
     private String fingerprint(AccountCommands.Create input) {
         try {
             String normalized = json.writeValueAsString(new AccountCommands.Create(input.company().trim(),
-                    input.billingEmail().trim().toLowerCase(Locale.ROOT), input.plan()));
+                    input.billingEmail().trim().toLowerCase(Locale.ROOT), input.plan(), input.justification()));
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(normalized.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException | JsonProcessingException e) { throw new IllegalStateException(e); }
     }
