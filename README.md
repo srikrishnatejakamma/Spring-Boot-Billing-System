@@ -84,6 +84,8 @@ python -m unittest discover -s ci -p 'test_*.py'
 
 The infrastructure task requires Docker and is deliberately separate from the fast H2 tests. It is mandatory in the included GitLab pipeline. Coverage enforces 80% line coverage on account command processing and outbox failure-state behavior; reports are under `billing-api/build/reports/jacoco/test/html/index.html`.
 
+The build defaults to one Gradle worker to keep Java and React verification reliable on development machines with limited free memory. On a larger machine, override this with `--max-workers=4`.
+
 ## Project layout
 
 | Module / path | Responsibility |
