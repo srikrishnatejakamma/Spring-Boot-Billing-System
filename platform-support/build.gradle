@@ -1,3 +1,4 @@
+plugins { id 'java-test-fixtures' }
 dependencies {
     api 'org.springframework.boot:spring-boot-starter-web'
     api 'org.springframework.boot:spring-boot-starter-actuator'
@@ -6,4 +7,5 @@ dependencies {
     implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
     runtimeOnly 'io.micrometer:micrometer-registry-datadog'
     testImplementation 'org.springframework.security:spring-security-test'
+    testFixturesApi 'org.springframework.security:spring-security-oauth2-jose'
 }

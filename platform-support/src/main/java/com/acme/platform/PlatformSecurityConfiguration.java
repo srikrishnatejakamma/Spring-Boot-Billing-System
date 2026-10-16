@@ -19,6 +19,8 @@ import java.util.*;
 public class PlatformSecurityConfiguration {
     @Bean public AccessPolicy accessPolicy(Environment environment) {
         boolean secured = environment.getProperty("billing.security.enabled", Boolean.class, true);
+        if (environment.acceptsProfiles(Profiles.of("demo")) && environment.acceptsProfiles(Profiles.of("distributed", "local", "production")))
+            throw new IllegalStateException("Demo and deployed profiles must not be combined");
         if (!secured && !environment.acceptsProfiles(Profiles.of("demo")))
             throw new IllegalStateException("Anonymous access is allowed only in the explicit demo profile");
         return new AccessPolicy(secured);
@@ -30,12 +32,13 @@ public class PlatformSecurityConfiguration {
                 .cors(cors -> cors.configurationSource(cors(environment)))
                 .headers(headers -> headers.contentSecurityPolicy(policy -> policy.policyDirectives(
                         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                        + "font-src 'self' https://fonts.gstatic.com; connect-src 'self' " + issuerOrigin(environment)
+                        + "font-src 'self' https://fonts.gstatic.com; connect-src 'self' " + issuerOrigin(environment, access.secured())
                         + "; base-uri 'self'; frame-ancestors 'none'; object-src 'none'")));
         if (!access.secured()) return http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll()).build();
 
         String issuer = environment.getRequiredProperty("security.jwt.issuer");
         String jwks = environment.getRequiredProperty("security.jwt.jwk-set-uri");
+        validateEndpoint(URI.create(jwks), environment, true);
         String audience = environment.getProperty("security.jwt.audience", "billing-api");
         var decoder = NimbusJwtDecoder.withJwkSetUri(jwks).build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefaultWithIssuer(issuer),
@@ -73,10 +76,17 @@ public class PlatformSecurityConfiguration {
         var source = new UrlBasedCorsConfigurationSource(); source.registerCorsConfiguration("/**", configuration); return source;
     }
 
-    private String issuerOrigin(Environment environment) {
+    private String issuerOrigin(Environment environment, boolean secured) {
         URI uri = URI.create(environment.getProperty("security.jwt.issuer", "http://localhost:8180/realms/billing"));
+        validateEndpoint(uri, environment, secured);
+        return uri.getScheme() + "://" + uri.getAuthority();
+    }
+    private void validateEndpoint(URI uri, Environment environment, boolean secured) {
         if (uri.getHost() == null || (!"http".equals(uri.getScheme()) && !"https".equals(uri.getScheme())))
             throw new IllegalArgumentException("OIDC issuer must be an HTTP(S) URL");
-        return uri.getScheme() + "://" + uri.getAuthority();
+        if (uri.getUserInfo() != null || uri.getFragment() != null) throw new IllegalArgumentException("OIDC URLs cannot contain credentials or fragments");
+        boolean local = environment.acceptsProfiles(Profiles.of("local", "security-test"));
+        if (secured && !"https".equals(uri.getScheme()) && !local)
+            throw new IllegalArgumentException("Secured deployments require HTTPS identity endpoints; HTTP is allowed only in local/test profiles");
     }
 }

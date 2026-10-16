@@ -5,6 +5,9 @@ spring:
     import: optional:classpath:platform-defaults.yml
   profiles:
     default: distributed
+    group:
+      local: distributed
+      production: distributed
   cloud:
     config:
       enabled: false

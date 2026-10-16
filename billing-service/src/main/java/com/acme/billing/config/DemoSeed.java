@@ -8,7 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.*;
 
-@Configuration @Profile("!distributed")
+@Configuration @Profile("demo")
 @ConditionalOnProperty(name = "billing.seed", havingValue = "true", matchIfMissing = true)
 public class DemoSeed {
     @Bean CommandLineRunner seed(AccountRepository accounts, AccountService service) {

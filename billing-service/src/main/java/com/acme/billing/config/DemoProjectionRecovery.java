@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import java.util.Comparator;
 
 /** Rehydrate the ephemeral demo projection without changing durable receipts or sending HTTP. */
-@Component @Profile("!distributed") @Order(0)
+@Component @Profile("demo") @Order(0)
 public class DemoProjectionRecovery implements CommandLineRunner {
     private final OutboxRepository events;
     private final DemoDestination destination;
