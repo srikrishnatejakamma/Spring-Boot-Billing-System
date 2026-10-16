@@ -1,5 +1,7 @@
 package com.acme.billing.integrations;
 
+import com.acme.billing.dto.*;
+
 import com.acme.billing.core.*;
 import org.junit.jupiter.api.Test;
 import java.time.Instant;

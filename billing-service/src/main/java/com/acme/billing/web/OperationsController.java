@@ -1,5 +1,7 @@
 package com.acme.billing.web;
 
+import com.acme.billing.dto.*;
+
 import com.acme.billing.integrations.DemoDestination;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;

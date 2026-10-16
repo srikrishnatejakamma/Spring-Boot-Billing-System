@@ -1,4 +1,6 @@
-package com.acme.billing.core;
+package com.acme.billing.dto;
+
+import com.acme.billing.core.*;
 
 import java.time.Instant;
 import java.util.UUID;

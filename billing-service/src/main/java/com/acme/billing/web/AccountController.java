@@ -1,5 +1,7 @@
 package com.acme.billing.web;
 
+import com.acme.billing.dto.*;
+
 import com.acme.billing.account.*;
 import jakarta.validation.Valid;
 import org.springframework.http.*;

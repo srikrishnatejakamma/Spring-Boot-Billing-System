@@ -1,0 +1,11 @@
+[versions]
+springBoot = "3.5.16"
+dependencyManagement = "1.1.7"
+springCloud = "2025.0.0"
+dgs = "10.2.1"
+resilience4j = "2.3.0"
+archunit = "1.4.1"
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
+dependency-management = { id = "io.spring.dependency-management", version.ref = "dependencyManagement" }

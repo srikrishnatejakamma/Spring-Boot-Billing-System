@@ -1,5 +1,7 @@
 package com.acme.billing.config;
 
+import com.acme.billing.dto.*;
+
 import com.acme.billing.account.*;
 import com.acme.billing.core.*;
 import org.springframework.boot.CommandLineRunner;

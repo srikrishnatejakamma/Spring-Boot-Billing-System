@@ -1,6 +1,7 @@
 package com.acme.billing.config;
 
-import com.acme.billing.core.AccountChanged;
+import com.acme.billing.dto.*;
+
 import com.acme.billing.events.*;
 import com.acme.billing.integrations.DemoDestination;
 import com.fasterxml.jackson.databind.ObjectMapper;

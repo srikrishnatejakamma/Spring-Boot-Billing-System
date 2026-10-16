@@ -1,4 +1,4 @@
-package com.acme.billing.account;
+package com.acme.billing.dto;
 
 import com.acme.billing.core.*;
 import jakarta.validation.constraints.*;

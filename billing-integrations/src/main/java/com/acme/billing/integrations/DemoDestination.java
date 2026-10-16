@@ -1,7 +1,7 @@
 package com.acme.billing.integrations;
 
-import com.acme.billing.core.AccountChanged;
-import com.acme.billing.core.AccountSnapshot;
+import com.acme.billing.dto.*;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;

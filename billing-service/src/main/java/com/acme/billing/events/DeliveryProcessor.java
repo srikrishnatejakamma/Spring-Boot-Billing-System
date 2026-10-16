@@ -1,7 +1,8 @@
 package com.acme.billing.events;
 
+import com.acme.billing.dto.*;
+
 import com.acme.billing.account.SyncRepository;
-import com.acme.billing.core.AccountChanged;
 import com.acme.billing.integrations.AccountDestination;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;

@@ -1,0 +1,27 @@
+plugins { id 'org.springframework.boot' }
+dependencies {
+    implementation project(':common-dto')
+    implementation project(':billing-integrations')
+    implementation project(':platform-support')
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-mysql'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    testRuntimeOnly 'com.h2database:h2'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation "com.tngtech.archunit:archunit-junit5:${libs.versions.archunit.get()}"
+}
+jacocoTestCoverageVerification {
+    dependsOn test
+    violationRules {
+        rule {
+            element = 'CLASS'
+            includes = ['com.acme.worker.domain.InboxMessage']
+            limit { counter = 'LINE'; minimum = 0.80 }
+        }
+    }
+}
+tasks.named('check') { dependsOn jacocoTestCoverageVerification }

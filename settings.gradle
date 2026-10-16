@@ -1,2 +1,2 @@
 rootProject.name = 'billing-control-center'
-include 'billing-core', 'billing-integrations', 'billing-api', 'frontend'
+include 'common-domain', 'common-dto', 'billing-integrations', 'platform-support', 'billing-service', 'event-worker', 'config-server', 'system-tests', 'frontend'

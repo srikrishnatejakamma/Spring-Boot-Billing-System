@@ -1,6 +1,7 @@
 package com.acme.billing.events;
 
-import com.acme.billing.core.AccountChanged;
+import com.acme.billing.dto.*;
+
 import jakarta.persistence.*;
 import java.time.Instant;
 

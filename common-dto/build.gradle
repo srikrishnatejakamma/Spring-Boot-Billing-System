@@ -1,0 +1,4 @@
+dependencies {
+    api project(':common-domain')
+    api 'jakarta.validation:jakarta.validation-api'
+}

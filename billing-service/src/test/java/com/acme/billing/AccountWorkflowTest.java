@@ -1,5 +1,7 @@
 package com.acme.billing;
 
+import com.acme.billing.dto.*;
+
 import com.acme.billing.account.*;
 import com.acme.billing.core.*;
 import com.acme.billing.events.*;

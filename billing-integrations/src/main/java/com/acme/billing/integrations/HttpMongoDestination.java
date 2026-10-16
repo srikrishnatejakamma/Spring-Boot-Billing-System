@@ -1,6 +1,7 @@
 package com.acme.billing.integrations;
 
-import com.acme.billing.core.AccountChanged;
+import com.acme.billing.dto.*;
+
 import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
