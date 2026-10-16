@@ -1,0 +1,43 @@
+type Query {
+    accounts: [Account!]!
+    account(id: ID!): Account
+    overview: Overview!
+    events(accountId: ID): [BillingEvent!]!
+}
+type Account {
+    id: ID!
+    company: String!
+    billingEmail: String!
+    plan: String!
+    status: String!
+    monthlyRate: String!
+    currency: String!
+    version: Int!
+    syncStatus: String!
+    syncedVersion: Int
+    createdAt: String!
+    updatedAt: String!
+}
+type BillingEvent {
+    id: ID!
+    accountId: ID!
+    accountVersion: Int!
+    type: String!
+    status: String!
+    attempts: Int!
+    createdAt: String!
+    nextAttemptAt: String!
+    deliveredAt: String
+    lastError: String
+}
+type Overview {
+    totalAccounts: Int!
+    activeAccounts: Int!
+    monthlyRevenue: String!
+    syncedAccounts: Int!
+    pendingEvents: Int!
+    failedEvents: Int!
+    deliveredEvents: Int!
+    demo: Boolean!
+    platformAvailable: Boolean!
+}

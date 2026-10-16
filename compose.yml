@@ -1,0 +1,76 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: billing
+      MYSQL_USER: billing
+      MYSQL_PASSWORD: ${DB_PASSWORD:-billing-local}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-local}
+    ports: ["127.0.0.1:3306:3306"]
+    volumes: ["mysql-data:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: billing
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD:-billing-local}
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    volumes: ["rabbit-data:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  mongodb:
+    image: mongo:7
+    ports: ["127.0.0.1:27017:27017"]
+    volumes: ["mongo-data:/data/db"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  billing-platform:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["node", "mock-platform.mjs"]
+    volumes: ["./infra/mock-platform.mjs:/app/mock-platform.mjs:ro"]
+    ports: ["127.0.0.1:8090:8090"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8090/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  app:
+    build: .
+    profiles: ["app"]
+    environment:
+      SPRING_PROFILES_ACTIVE: distributed
+      DB_URL: jdbc:mysql://mysql:3306/billing?serverTimezone=UTC
+      DB_USER: billing
+      DB_PASSWORD: ${DB_PASSWORD:-billing-local}
+      RABBIT_HOST: rabbitmq
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD:-billing-local}
+      MONGO_URI: mongodb://mongodb:27017/billing
+      BILLING_PLATFORM_URL: http://billing-platform:8090
+      DD_ENV: local
+    ports: ["127.0.0.1:8080:8080"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 5s
+      timeout: 3s
+      start_period: 60s
+      retries: 30
+    depends_on:
+      mysql: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      mongodb: { condition: service_healthy }
+      billing-platform: { condition: service_healthy }
+volumes:
+  mysql-data:
+  rabbit-data:
+  mongo-data:

@@ -1,0 +1,53 @@
+plugins { id 'org.springframework.boot' }
+dependencies {
+    implementation project(':billing-core')
+    implementation project(':billing-integrations')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation platform('com.netflix.graphql.dgs:graphql-dgs-platform-dependencies:10.2.1')
+    implementation 'com.netflix.graphql.dgs:graphql-dgs-spring-graphql-starter'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-mysql'
+    runtimeOnly 'com.h2database:h2'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'io.micrometer:micrometer-registry-datadog'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
+    testImplementation 'org.testcontainers:rabbitmq'
+    testImplementation 'org.testcontainers:mongodb'
+}
+
+tasks.register('infrastructureTest', Test) {
+    description = 'Run MySQL, RabbitMQ and MongoDB integration tests (requires Docker).'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'infrastructure' }
+    shouldRunAfter test
+}
+
+tasks.register('packageUi', Copy) {
+    dependsOn ':frontend:build'
+    from project(':frontend').layout.projectDirectory.dir('dist')
+    into layout.buildDirectory.dir('generated-ui/static')
+}
+tasks.named('bootJar') {
+    dependsOn 'packageUi'
+    from(layout.buildDirectory.dir('generated-ui')) { into 'BOOT-INF/classes' }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn test
+    violationRules {
+        rule {
+            element = 'CLASS'
+            includes = ['com.acme.billing.account.AccountService', 'com.acme.billing.events.OutboxEvent']
+            limit { counter = 'LINE'; minimum = 0.80 }
+        }
+    }
+}
+tasks.named('check') { dependsOn jacocoTestCoverageVerification }

@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: billing-control-center
+  datasource:
+    url: jdbc:h2:file:./data/billing;MODE=MySQL;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ''
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+      hibernate.type.preferred_instant_jdbc_type: TIMESTAMP
+  graphql:
+    graphiql:
+      enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration
+server:
+  address: 127.0.0.1
+  error:
+    include-message: always
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  datadog:
+    metrics:
+      export:
+        enabled: ${DD_METRICS_ENABLED:false}
+        api-key: ${DD_API_KEY:unused}
+        application-key: ${DD_APP_KEY:unused}
+        uri: ${DD_API_URI:https://api.datadoghq.com}
+        step: 30s
+  metrics:
+    tags:
+      service: billing-control-center
+      env: ${DD_ENV:local}
+billing:
+  distributed: false
+  seed: true

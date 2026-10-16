@@ -1,0 +1,28 @@
+spring:
+  autoconfigure:
+    exclude: []
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/billing?serverTimezone=UTC}
+    username: ${DB_USER:billing}
+    password: ${DB_PASSWORD:billing-local}
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    username: ${RABBIT_USER:billing}
+    password: ${RABBIT_PASSWORD:billing-local}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    connection-timeout: 3s
+    listener:
+      simple:
+        default-requeue-rejected: false
+        concurrency: 2
+        prefetch: 10
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/billing}
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+billing:
+  distributed: true
+  seed: false
+  platform-url: ${BILLING_PLATFORM_URL:http://localhost:8090}

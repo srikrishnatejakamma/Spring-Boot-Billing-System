@@ -1,0 +1,38 @@
+plugins {
+    id 'org.springframework.boot' version '3.5.7' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+    id 'base'
+}
+
+allprojects {
+    group = 'com.acme.billing'
+    version = '1.0.0'
+    repositories { mavenCentral() }
+}
+
+configure(subprojects.findAll { it.name != 'frontend' }) {
+    apply plugin: 'java-library'
+    apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'jacoco'
+    java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+    dependencyManagement {
+        imports { mavenBom 'org.springframework.boot:spring-boot-dependencies:3.5.7' }
+    }
+    tasks.withType(JavaCompile).configureEach { options.compilerArgs += '-parameters' }
+    dependencies {
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+    test {
+        useJUnitPlatform { excludeTags 'infrastructure' }
+        finalizedBy jacocoTestReport
+    }
+    jacocoTestReport { reports { xml.required = true; html.required = true } }
+}
+
+tasks.register('verify') {
+    group = 'verification'
+    description = 'Test backend modules and test/build the React frontend.'
+    dependsOn ':billing-core:test', ':billing-integrations:test', ':billing-api:test', ':frontend:test', ':frontend:build'
+    dependsOn ':billing-api:jacocoTestCoverageVerification'
+}

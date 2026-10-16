@@ -1,0 +1,22 @@
+plugins { id 'base' }
+def npm = System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm'
+tasks.register('install', Exec) {
+    inputs.files 'package.json', 'package-lock.json'
+    outputs.file 'node_modules/.package-lock.json'
+    commandLine npm, 'ci', '--no-audit', '--no-fund'
+}
+tasks.register('test', Exec) {
+    dependsOn 'install'
+    inputs.dir 'src'
+    inputs.files 'package.json', 'vite.config.js'
+    commandLine npm, 'test', '--', '--run'
+}
+tasks.register('bundle', Exec) {
+    dependsOn 'install'
+    inputs.dir 'src'
+    inputs.files 'index.html', 'package.json', 'vite.config.js'
+    outputs.dir 'dist'
+    commandLine npm, 'run', 'build'
+}
+tasks.named('build') { dependsOn 'bundle' }
+tasks.named('check') { dependsOn 'test' }

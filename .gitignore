@@ -1,0 +1,15 @@
+.gradle/
+.gradle-user/
+**/build/
+**/node_modules/
+**/dist/
+**/.npm-cache/
+data/
+.env
+*.log
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+!gradle/wrapper/gradle-wrapper.jar
+requirement.txt

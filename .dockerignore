@@ -1,0 +1,9 @@
+.git
+.gradle
+.gradle-user
+**/node_modules
+**/.npm-cache
+**/build
+**/dist
+data
+.env
