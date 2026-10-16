@@ -12,6 +12,10 @@ spring:
     url: ${WORKER_DB_URL:jdbc:mysql://localhost:3306/worker?serverTimezone=UTC&connectTimeout=3000&socketTimeout=5000}
     username: ${WORKER_DB_USER:worker}
     password: ${WORKER_DB_PASSWORD:worker-local}
+  flyway:
+    locations: classpath:db/worker-migration
+    user: ${WORKER_FLYWAY_USER:${spring.datasource.username}}
+    password: ${WORKER_FLYWAY_PASSWORD:${spring.datasource.password}}
   jpa:
     open-in-view: false
     hibernate:

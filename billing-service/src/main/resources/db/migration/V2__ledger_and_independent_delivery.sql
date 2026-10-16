@@ -17,7 +17,7 @@ CREATE TABLE ledger_transactions (
     kind VARCHAR(20) NOT NULL,
     amount DECIMAL(12,2) NOT NULL,
     description VARCHAR(200) NOT NULL,
-    actor VARCHAR(150) NOT NULL,
+    actor VARCHAR(255) NOT NULL,
     request_key VARCHAR(100) NOT NULL UNIQUE,
     fingerprint VARCHAR(64) NOT NULL,
     account_version BIGINT NOT NULL,

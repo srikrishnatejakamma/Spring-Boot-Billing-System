@@ -3,6 +3,7 @@ import graphql.*;
 import graphql.schema.DataFetchingEnvironment;
 import org.slf4j.*;
 import org.springframework.graphql.execution.*;
+import org.springframework.graphql.execution.ErrorType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;

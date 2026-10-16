@@ -9,5 +9,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication @EnableScheduling
 @Import({PlatformSecurityConfiguration.class, PlatformObservabilityConfiguration.class})
 public class WorkerApplication {
-    public static void main(String[] args) { SpringApplication.run(WorkerApplication.class, args); }
+    public static void main(String[] args) {
+        var app = new SpringApplication(WorkerApplication.class);
+        app.setDefaultProperties(java.util.Map.of("spring.config.name", "worker"));
+        app.run(args);
+    }
 }
