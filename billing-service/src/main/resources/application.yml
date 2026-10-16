@@ -33,11 +33,6 @@ spring:
   mvc:
     problemdetails:
       enabled: true
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration
 server:
   address: 127.0.0.1
   shutdown: graceful
