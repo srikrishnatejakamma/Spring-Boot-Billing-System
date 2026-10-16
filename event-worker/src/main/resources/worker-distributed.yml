@@ -1,3 +1,9 @@
+worker:
+  dynamodb:
+    enabled: ${WORKER_DYNAMODB_ENABLED:false}
+    region: ${AWS_REGION:us-east-1}
+    endpoint: ${WORKER_DYNAMODB_ENDPOINT:}
+    table: ${WORKER_DYNAMODB_TABLE:billing-account-projection}
 spring:
   rabbitmq:
     listener:

@@ -5,6 +5,7 @@ springCloud = "2025.0.0"
 dgs = "10.2.1"
 resilience4j = "2.3.0"
 archunit = "1.4.1"
+awsSdk = "2.55.16"
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
