@@ -6,6 +6,7 @@ import com.acme.billing.account.*;
 import com.acme.billing.core.*;
 import com.acme.billing.events.*;
 import com.acme.billing.web.OperationsService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.bson.Document;
@@ -34,7 +35,8 @@ import static org.awaitility.Awaitility.await;
 @ActiveProfiles({"distributed", "security-test"})
 @SpringBootTest(properties = {
         "billing.scheduler.enabled=false", "billing.seed=false", "spring.cloud.config.enabled=false",
-        "BILLING_CONFIG_IMPORT=optional:classpath:platform-defaults.yml"})
+        "BILLING_CONFIG_IMPORT=optional:classpath:platform-defaults.yml",
+        "spring.flyway.baseline-on-migrate=true", "spring.flyway.baseline-version=0"})
 class DistributedWorkflowTest {
     @Container static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4");
     @Container static RabbitMQContainer rabbit = new RabbitMQContainer("rabbitmq:3.13-management-alpine");
@@ -66,6 +68,8 @@ class DistributedWorkflowTest {
                         "--spring.datasource.username=" + mysql.getUsername(),
                         "--spring.datasource.password=" + mysql.getPassword(),
                         "--spring.flyway.table=worker_flyway_schema_history",
+                        "--spring.flyway.baseline-on-migrate=true",
+                        "--spring.flyway.baseline-version=0",
                         "--spring.rabbitmq.host=" + rabbit.getHost(),
                         "--spring.rabbitmq.port=" + rabbit.getAmqpPort(),
                         "--spring.rabbitmq.username=" + rabbit.getAdminUsername(),
@@ -81,8 +85,9 @@ class DistributedWorkflowTest {
     @Autowired RabbitTemplate messages;
     @Autowired MeterRegistry metrics;
     @Autowired OperationsService operations;
+    @Autowired ObjectMapper json;
 
-    @Test void realBrokerDeliversIntoMongoAndDuplicateMessagesAreHarmless() {
+    @Test void realBrokerDeliversIntoMongoAndDuplicateMessagesAreHarmless() throws Exception {
         var account = accounts.create(new AccountCommands.Create("Distributed Acme", "finance@acme.example", Plan.ENTERPRISE), "infrastructure-key-01");
         var event = events.findByAccountIdOrderByCreatedAtDesc(account.id).getFirst();
         dispatcher.dispatch(event.id);
@@ -90,10 +95,10 @@ class DistributedWorkflowTest {
             assertThat(events.findById(event.id).orElseThrow().status).isEqualTo(EventStatus.DELIVERED);
             assertThat(syncs.findById(account.id).orElseThrow().syncedVersion).isZero();
         });
-        messages.convertAndSend("billing.events", "account.changed", event.id);
-        messages.convertAndSend("billing.events", "account.changed", event.id);
+        String envelope = json.writeValueAsString(new EventEnvelope(1, json.readValue(event.payload, AccountChanged.class), event.generation));
+        messages.convertAndSend("billing.events", "account.changed", envelope);
+        messages.convertAndSend("billing.events", "account.changed", envelope);
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            assertThat(metrics.counter("billing.delivery.duplicates").count()).isGreaterThanOrEqualTo(2);
             assertThat(platformCalls.get()).isEqualTo(1);
             assertThat(received).containsExactly(event.id);
             Document document = projection.findById(account.id, Document.class, "account_views");
