@@ -28,7 +28,7 @@ public class OperationsController {
     @PutMapping("/demo/platform") public Map<String, Boolean> platform(@Valid @RequestBody PlatformState state) {
         requireDemo().setAvailable(state.available()); return Map.of("available", state.available());
     }
-    @GetMapping("/demo/projection") public Collection<com.acme.billing.core.AccountSnapshot> projection() { return requireDemo().snapshots().values(); }
+    @GetMapping("/demo/projection") public Collection<com.acme.billing.dto.AccountSnapshot> projection() { return requireDemo().snapshots().values(); }
     private DemoDestination requireDemo() {
         var destination = demo.getIfAvailable();
         if (destination == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Only available in demo mode");
