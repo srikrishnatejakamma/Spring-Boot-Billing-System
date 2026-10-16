@@ -1,0 +1,24 @@
+logging:
+  structured:
+    format:
+      console: ecs
+management:
+  tracing:
+    enabled: ${TRACING_ENABLED:true}
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+  datadog:
+    metrics:
+      export:
+        enabled: ${DD_METRICS_ENABLED:false}
+        api-key: ${DD_API_KEY:unused}
+        application-key: ${DD_APP_KEY:unused}
+        uri: ${DD_API_URI:https://api.datadoghq.com}
+        step: 30s
+  metrics:
+    tags:
+      service: ${spring.application.name}
+      env: ${DD_ENV:local}

@@ -1,0 +1,5 @@
+worker:
+  poll-delay: 1000
+  lease-seconds: 30
+  rate-limit-per-second: 20
+  circuit-failure-threshold: 50

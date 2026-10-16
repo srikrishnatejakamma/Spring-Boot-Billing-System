@@ -1,2 +1,3 @@
 package com.acme.billing.events;
-public interface EventTransport { void send(String eventId) throws Exception; }
+import com.acme.billing.dto.EventEnvelope;
+public interface EventTransport { void send(EventEnvelope event, String routingKey) throws Exception; }

@@ -8,10 +8,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.*;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 
 @Service
+@Profile("demo")
 public class DeliveryProcessor {
     private static final Logger log = LoggerFactory.getLogger(DeliveryProcessor.class);
     private final OutboxRepository events;

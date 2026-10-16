@@ -1,8 +1,13 @@
 spring:
   application:
-    name: billing-control-center
+    name: billing-service
+  config:
+    import: optional:classpath:platform-defaults.yml
   profiles:
     default: demo
+  cloud:
+    config:
+      enabled: false
   datasource:
     url: jdbc:h2:file:./data/billing;MODE=MySQL;DB_CLOSE_ON_EXIT=FALSE
     username: sa
@@ -20,6 +25,11 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration
 server:
   address: 127.0.0.1
   error:
@@ -43,8 +53,15 @@ management:
         step: 30s
   metrics:
     tags:
-      service: billing-control-center
+      service: ${spring.application.name}
       env: ${DD_ENV:local}
 billing:
   distributed: false
   seed: true
+  security:
+    enabled: true
+security:
+  jwt:
+    issuer: ${OIDC_ISSUER_URI:http://localhost:8180/realms/billing}
+    jwk-set-uri: ${OIDC_JWKS_URI:http://localhost:8180/realms/billing/protocol/openid-connect/certs}
+    audience: ${OIDC_AUDIENCE:billing-api}

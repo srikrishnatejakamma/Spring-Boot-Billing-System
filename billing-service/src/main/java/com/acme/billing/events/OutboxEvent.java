@@ -14,6 +14,9 @@ public class OutboxEvent {
     @Column(nullable = false, columnDefinition = "TEXT") public String payload;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) public EventStatus status;
     @Column(nullable = false) public int attempts;
+    @Column(nullable = false) public int generation;
+    @Column(nullable = false) public long resultRevision;
+    @Column(nullable = false, length = 80) public String routingKey = "account.changed";
     @Column(nullable = false) public Instant createdAt;
     @Column(nullable = false) public Instant nextAttemptAt;
     public Instant deliveredAt;

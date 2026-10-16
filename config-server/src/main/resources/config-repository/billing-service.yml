@@ -1,0 +1,5 @@
+billing:
+  scheduler:
+    delay: 2000
+  delivery:
+    routing-key: account.changed

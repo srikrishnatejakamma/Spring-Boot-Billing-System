@@ -17,6 +17,7 @@ public class OperationsService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only retrying or dead-letter events can be retried");
         event.status = EventStatus.PENDING;
         event.attempts = 0;
+        event.generation++;
         event.nextAttemptAt = Instant.now();
         return Views.Event.of(event);
     }

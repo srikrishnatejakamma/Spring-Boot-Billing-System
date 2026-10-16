@@ -7,5 +7,5 @@ import org.springframework.context.annotation.*;
 @Configuration @Profile("!distributed")
 public class DemoConfiguration {
     @Bean public DemoDestination demoDestination() { return new DemoDestination(); }
-    @Bean public EventTransport localTransport() { return eventId -> {}; }
+    @Bean public EventTransport localTransport() { return (event, routingKey) -> {}; }
 }
