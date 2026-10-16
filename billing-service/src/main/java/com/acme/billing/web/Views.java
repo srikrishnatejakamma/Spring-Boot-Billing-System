@@ -9,11 +9,11 @@ public final class Views {
     private Views() {}
     public record Account(String id, String company, String billingEmail, Plan plan, AccountStatus status,
                           String monthlyRate, String currency, long version, String syncStatus,
-                          Long syncedVersion, Instant createdAt, Instant updatedAt) {
+                          Long syncedVersion, Instant createdAt, Instant updatedAt, String outstandingBalance) {
         public static Account of(BillingAccount account, AccountSync sync, String syncStatus) {
             return new Account(account.id, account.company, account.billingEmail, account.plan, account.status,
                     account.monthlyRate.toPlainString(), account.currency, account.version, syncStatus,
-                    sync == null || sync.syncedVersion < 0 ? null : sync.syncedVersion, account.createdAt, account.updatedAt);
+                    sync == null || sync.syncedVersion < 0 ? null : sync.syncedVersion, account.createdAt, account.updatedAt, account.outstandingBalance.toPlainString());
         }
     }
     public record Event(String id, String accountId, long accountVersion, String type, EventStatus status,

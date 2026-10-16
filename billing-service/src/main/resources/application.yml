@@ -58,6 +58,8 @@ management:
 billing:
   distributed: false
   seed: true
+  ledger:
+    enabled: ${LEDGER_ENABLED:false}
   security:
     enabled: true
 security:

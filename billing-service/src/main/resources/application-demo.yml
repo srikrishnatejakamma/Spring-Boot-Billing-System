@@ -6,6 +6,8 @@ spring:
       - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
       - org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration
 billing:
+  ledger:
+    enabled: true
   security:
     enabled: false
 management:

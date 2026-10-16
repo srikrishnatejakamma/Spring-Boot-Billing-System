@@ -9,6 +9,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.*;
 
 @RestController @RequestMapping("/api")
@@ -21,7 +22,8 @@ public class OperationsController {
     }
     @GetMapping("/overview") public Views.Overview overview() { return queries.overview(); }
     @GetMapping("/events") public List<Views.Event> events(@RequestParam(required = false) String accountId) { return queries.events(accountId); }
-    @PostMapping("/events/{id}/retry") public Views.Event retry(@PathVariable String id) { return operations.retry(id); }
+    @PostMapping("/events/{id}/retry") @PreAuthorize("@accessPolicy.allows('events.retry')")
+    public Views.Event retry(@PathVariable String id) { return operations.retry(id); }
     public record PlatformState(@NotNull Boolean available) {}
     @PutMapping("/demo/platform") public Map<String, Boolean> platform(@Valid @RequestBody PlatformState state) {
         requireDemo().setAvailable(state.available()); return Map.of("available", state.available());

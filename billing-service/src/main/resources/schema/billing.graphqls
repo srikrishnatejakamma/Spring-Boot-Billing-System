@@ -1,5 +1,5 @@
 type Query {
-    accounts: [Account!]!
+    accounts(limit: Int = 100): [Account!]!
     account(id: ID!): Account
     overview: Overview!
     events(accountId: ID): [BillingEvent!]!
@@ -7,7 +7,7 @@ type Query {
 type Account {
     id: ID!
     company: String!
-    billingEmail: String!
+    billingEmail: String
     plan: String!
     status: String!
     monthlyRate: String!
@@ -17,6 +17,26 @@ type Account {
     syncedVersion: Int
     createdAt: String!
     updatedAt: String!
+    outstandingBalance: String!
+    transactions: [LedgerTransaction!]!
+}
+type LedgerTransaction {
+    id: ID!
+    accountId: ID!
+    kind: String!
+    amount: String!
+    description: String!
+    actor: String!
+    accountVersion: Int!
+    createdAt: String!
+    entries: [LedgerEntry!]!
+}
+type LedgerEntry {
+    id: ID!
+    transactionId: ID!
+    ledgerAccount: String!
+    side: String!
+    amount: String!
 }
 type BillingEvent {
     id: ID!

@@ -29,7 +29,7 @@ public class HttpMongoDestination implements AccountDestination {
         Query identity = Query.query(Criteria.where("_id").is(id));
         mongo.upsert(identity, new Update().setOnInsert("version", -1L), "account_views");
         Query newer = Query.query(Criteria.where("_id").is(id).and("version").lt(event.account().version()));
-        mongo.updateFirst(newer, new Update()
+        var update = new Update()
                 .set("company", event.account().company())
                 .set("billingEmail", event.account().billingEmail())
                 .set("plan", event.account().plan().name())
@@ -37,6 +37,9 @@ public class HttpMongoDestination implements AccountDestination {
                 .set("monthlyRate", event.account().monthlyRate())
                 .set("currency", event.account().currency())
                 .set("version", event.account().version())
-                .set("lastEventId", event.eventId().toString()), Document.class, "account_views");
+                .set("lastEventId", event.eventId().toString());
+        // Preserve the newly added field when reading an older v1 envelope during a staged rollout.
+        if (event.account().outstandingBalance() != null) update.set("outstandingBalance", event.account().outstandingBalance());
+        mongo.updateFirst(newer, update, Document.class, "account_views");
     }
 }

@@ -17,6 +17,7 @@ public class BillingAccount {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) public Plan plan;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) public AccountStatus status;
     @Column(nullable = false, precision = 12, scale = 2) public BigDecimal monthlyRate;
+    @Column(nullable = false, precision = 12, scale = 2) public BigDecimal outstandingBalance = new BigDecimal("0.00");
     @Column(nullable = false, length = 3) public String currency = "USD";
     @Version @Column(nullable = false) public Long version;
     @Column(nullable = false) public Instant createdAt;
@@ -24,6 +25,6 @@ public class BillingAccount {
 
     public AccountSnapshot snapshot() {
         return new AccountSnapshot(UUID.fromString(id), company, billingEmail, plan, status,
-                monthlyRate.toPlainString(), currency, version);
+                monthlyRate.toPlainString(), currency, version, outstandingBalance.toPlainString());
     }
 }

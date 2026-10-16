@@ -20,12 +20,12 @@ public class AccountService {
     private final AccountRepository accounts;
     private final SyncRepository syncs;
     private final IdempotencyRepository keys;
-    private final OutboxRepository outbox;
+    private final AccountEventRecorder recorder;
     private final ObjectMapper json;
 
     public AccountService(AccountRepository accounts, SyncRepository syncs, IdempotencyRepository keys,
-                          OutboxRepository outbox, ObjectMapper json) {
-        this.accounts = accounts; this.syncs = syncs; this.keys = keys; this.outbox = outbox; this.json = json;
+                          AccountEventRecorder recorder, ObjectMapper json) {
+        this.accounts = accounts; this.syncs = syncs; this.keys = keys; this.recorder = recorder; this.json = json;
     }
 
     @Transactional
@@ -50,7 +50,7 @@ public class AccountService {
         accounts.saveAndFlush(account);
         syncs.save(new AccountSync(account.id));
         keys.saveAndFlush(new IdempotencyRecord(key, fingerprint, account.id));
-        record(account, "ACCOUNT_CREATED");
+        recorder.record(account, "ACCOUNT_CREATED");
         return account;
     }
 
@@ -61,6 +61,8 @@ public class AccountService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This account changed. Refresh and try again with its current version");
         if (account.status == AccountStatus.CLOSED)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Closed accounts are read-only");
+        if (input.status() == AccountStatus.CLOSED && account.outstandingBalance.signum() != 0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Settle the outstanding balance before closing the account");
         account.company = input.company().trim();
         account.billingEmail = input.billingEmail().trim().toLowerCase(Locale.ROOT);
         account.plan = input.plan();
@@ -68,19 +70,12 @@ public class AccountService {
         account.status = input.status();
         account.updatedAt = Instant.now();
         accounts.flush(); // @Version is assigned before the full-state event is serialized.
-        record(account, "ACCOUNT_UPDATED");
+        recorder.record(account, "ACCOUNT_UPDATED");
         return account;
     }
 
     public BillingAccount require(String id) {
         return accounts.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
-    }
-
-    private void record(BillingAccount account, String type) {
-        try {
-            var event = new AccountChanged(UUID.randomUUID(), type, Instant.now(), account.snapshot());
-            outbox.save(new OutboxEvent(event, json.writeValueAsString(event)));
-        } catch (JsonProcessingException e) { throw new IllegalStateException("Cannot encode account event", e); }
     }
 
     private String fingerprint(AccountCommands.Create input) {
